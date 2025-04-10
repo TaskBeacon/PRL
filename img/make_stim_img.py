@@ -1,9 +1,11 @@
-def generate_perlin_noise(filename="perlin.png",
-                            size=256,
-                            sigma=5,
-                            shape="circle",
-                            fg_color=255,
-                            bg_color=0):
+def generate_perlin_noise(
+filename="perlin.png",
+size=256,
+sigma=5,
+shape="circle",
+fg_color=255,
+bg_color=0,
+):
     """
     Generate a Perlin-like smooth noise texture with a geometric shape mask.
 
@@ -60,13 +62,15 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from PIL import Image, ImageDraw
 
-def generate_blob_texture(filename="blob.png",
-                            size=256,
-                            threshold=0.5,
-                            sigma=4,
-                            shape="circle",
-                            fg_color=255,
-                            bg_color=0):
+def generate_blob_texture(
+filename="blob.png",
+size=256,
+threshold=0.5,
+sigma=4,
+shape="circle",
+fg_color=255,
+bg_color=0,
+):
     """
     Generate a shape-masked blob texture with foreground and background color.
 
@@ -111,17 +115,12 @@ def generate_blob_texture(filename="blob.png",
 # Example usage
 # Blue-ish blob on light gray background
 generate_blob_texture("blob1.png", fg_color=180, bg_color=230, shape="circle")
-
-# Black blob on white background
-generate_blob_texture("blob2.png", fg_color=0, bg_color=255, shape="triangle")
-
 # Gray blob on black
 generate_blob_texture("blob3.png", fg_color=150, bg_color=0, shape="square")
 
 
 import os
 from PIL import Image, ImageDraw, ImageFont
-
 # Stroke count to Unicode range mapping (inclusive)
 stroke_to_unicode_range = {
     1:  (0x1B170, 0x1B170),
@@ -141,14 +140,16 @@ stroke_to_unicode_range = {
     15: (0x1B2F7, 0x1B2F9),
 }
 
-def generate_nushu_symbols(font_path,
-                            output_dir,
-                            stroke,
-                            stroke_range_dict,
-                            bg_color="white",
-                            fill_color="black",
-                            img_size=100,
-                            font_size=72):
+def generate_nushu_symbols(
+font_path,
+output_dir,
+stroke,
+stroke_range_dict,
+bg_color="white",
+fill_color="black",
+img_size=100,
+font_size=72
+):
     """
     Generate Nüshu symbol images for a specific stroke count.
 
