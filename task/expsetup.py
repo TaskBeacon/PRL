@@ -1,8 +1,8 @@
+import os, glob
 from psychopy import visual
 from psychopy.hardware import keyboard
-from psychopy.visual import ShapeStim
-from types import SimpleNamespace
 from datetime import datetime
+from types import SimpleNamespace
 from psyflow.seedcontrol import setup_seed_for_settings
 
 def exp_setup(
@@ -13,25 +13,29 @@ def exp_setup(
     bg_color='white',
     TotalBlocks=2,
     TotalTrials=20,
-    twoArrows=False,
-    useUpArrowStop=False,
-    initSSD=200,
-    staircase=50,
-    arrowDuration=1.0,
-    trialDuration=3.0,
-    seed_mode='indiv',
+    img_path="E:/xhmhc/TaskBeacon/PRL/stim_nushu",
+    fixDuration=0.5,
+    ITI=0.5,
+    cueDuration=1.5,
+    fbDuration=0.95,
+    seed_mode='same'
 ):
     """
-    Initializes the PsychoPy window, stimuli, experimental settings, and keyboard input handler.
-
+    Initializes the PsychoPy window, experimental settings, and keyboard input handler 
+    for the Probabilistic Reversal Learning (PRL) task.
+    
+    For this PRL task, two stimulus images (stima, stimb) are assigned uniquely per block,
+    and timing parameters for fixation, cue (stimulus presentation), inter-trial interval (ITI), 
+    and feedback are defined.
+    
     Parameters
     ----------
     subdata : list
-        Subject information, with the first element typically being the subject ID.
+        Subject information, where the first element is typically the subject ID.
     left_key : str, optional
-        Response key for left-arrow trials. Ignored if `twoArrows` is False (default: 'q').
+        Response key for the left stimulus (default: 'q').
     right_key : str, optional
-        Response key for right-arrow trials (default: 'p').
+        Response key for the right stimulus (default: 'p').
     win_size : tuple of int, optional
         Size of the experiment window in pixels (default: (1920, 1080)).
     bg_color : str or tuple, optional
@@ -40,30 +44,29 @@ def exp_setup(
         Number of blocks in the experiment (default: 2).
     TotalTrials : int, optional
         Total number of trials in the experiment (default: 20).
-    twoArrows : bool, optional
-        Whether to include both 'left' and 'right' arrow stimuli (default: False).
-    useUpArrowStop : bool, optional
-        Whether to use ↑ as the stop signal (default: False).
-    initSSD : int, optional
-        Initial stop-signal delay in milliseconds (default: 200).
-    staircase : int, optional
-        Step size for adjusting SSD (default: 50).
-    arrowDuration : float, optional
-        Duration of arrow presentation in seconds (default: 1.0).
-    trialDuration : float, optional
-        Maximum duration of a trial in seconds (default: 3.0).
+    img_path : str, optional
+        Directory where the PRL stimulus images (PNG files) are located.
+    fixDuration : float, optional
+        Duration of the fixation period in seconds (default: 0.5).
+    ITI : float, optional
+        Inter-trial interval duration in seconds (default: 0.5).
+    cueDuration : float, optional
+        Duration of the stimulus cue presentation in seconds (default: 1.5).
+    fbDuration : float, optional
+        Duration of the feedback display in seconds (default: 0.95).
     seed_mode : str, optional
-            One of 'random', 'same', or 'indiv'.
-
+        Determines the seed mode ('random', 'same', or 'indiv') for reproducibility.
+    
     Returns
     -------
     win : visual.Window
-        The PsychoPy window object used for stimulus presentation.
+        The PsychoPy window object.
     kb : keyboard.Keyboard
-        PsychoPy keyboard object for collecting keypresses.
+        The PsychoPy keyboard object for response collection.
     settings : SimpleNamespace
-        Object containing all experimental parameters and stimulus objects.
+        An object containing all experimental parameters and stimulus properties.
     """
+    # Create the window
     win = visual.Window(
         size=win_size,
         monitor="testMonitor",
@@ -74,48 +77,49 @@ def exp_setup(
         gammaErrorPolicy='ignore'
     )
 
-    # Define settings
+    # Create the settings namespace
     settings = SimpleNamespace()
     settings.TotalBlocks = TotalBlocks
     settings.TotalTrials = TotalTrials
     settings.TrialsPerBlock = TotalTrials // TotalBlocks
 
-    # Seed setup
+    # Seed setup for reproducibility
     settings = setup_seed_for_settings(settings, subdata, mode=seed_mode)
 
-    # Arrow vertices
-    LarrowVert = [(0.2, 0.05), (0.2, -0.05), (0, -0.05), (0, -0.1), (-.2, 0), (0, 0.1), (0, 0.05)]
-    RarrowVert = [(-0.2, 0.05), (-0.2, -0.05), (0, -0.05), (0, -0.1), (.2, 0), (0, 0.1), (0, 0.05)]
-    UparrowVert = [(-0.05, -0.2), (0.05, -0.2), (0.05, 0), (0.1, 0), (0, 0.2), (-0.1, 0), (-0.05, 0)]
+    # Save timing parameters (all times in seconds)
+    settings.fixDuration = fixDuration
+    settings.ITI = ITI
+    settings.cueDuration = cueDuration
+    settings.fbDuration = fbDuration
 
-    # Stimuli
-    settings.Larrow = ShapeStim(win, vertices=LarrowVert, fillColor='black', size=8, lineColor=None)
-    settings.Rarrow = ShapeStim(win, vertices=RarrowVert, fillColor='black', size=8, lineColor=None)
-    settings.LarrowSTOP = ShapeStim(win, vertices=LarrowVert, fillColor='red', size=8, lineColor=None)
-    settings.RarrowSTOP = ShapeStim(win, vertices=RarrowVert, fillColor='red', size=8, lineColor=None)
-    settings.UparrowSTOP = ShapeStim(win, vertices=UparrowVert, fillColor='black', size=8, lineColor=None)
+    # Save image stimulus path
+    settings.img_path = img_path
 
-    # Arrow types
-    settings.twoArrows = twoArrows
-    settings.useUpArrowStop = useUpArrowStop
-    settings.arrowTypes = ['left', 'right'] if twoArrows else ['right']
-
-    # Key settings
+    # Key settings for responses
     settings.left_key = left_key
     settings.right_key = right_key
-    settings.keyList = [left_key, right_key] if twoArrows else [right_key]
+    settings.keyList = [left_key, right_key]
 
-    # Timing and staircase settings
-    settings.initSSD = initSSD
-    settings.staircase = staircase
-    settings.arrowDuration = arrowDuration
-    settings.trialDuration = trialDuration
-
-    # Output file naming
+    # Output file naming based on subject ID and current datetime
     dt_string = datetime.now().strftime("%H%M%d%m")
     settings.outfile = f"Subject{subdata[0]}_{dt_string}.csv"
 
-    # Keyboard
+    # -----------------------------
+    # Build image pairs for each block
+    # -----------------------------
+    # List all PNG files in the specified img_path directory (sorted order)
+    img_files = sorted(glob.glob(os.path.join(settings.img_path, "*.png")))
+    required_files = TotalBlocks * 2  # Each block uses one pair (2 images)
+    if len(img_files) < required_files:
+        raise ValueError(f"Not enough image files to form pairs for each block. "
+                         f"Required: {required_files}, found: {len(img_files)}.")
+    
+    settings.imagePairs = {}
+    for block in range(1, TotalBlocks + 1):
+        stima_file = img_files[2 * (block - 1)]
+        stimb_file = img_files[2 * (block - 1) + 1]
+        settings.imagePairs[block] = {"stima": stima_file, "stimb": stimb_file}
+    # Initialize the keyboard
     kb = keyboard.Keyboard()
 
     return win, kb, settings
