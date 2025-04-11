@@ -78,8 +78,8 @@ def exp_run(win, kb, settings, trialseq, subdata):
         # --- 2. Stimulus presentation ---
         # Get stimulus assignment for this trial from trialseq.stims (a dict with keys "left" and "right")
         stim_assign = trialseq.stims[i]
-        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-0.5, 0), size=(1.2, 1.2))
-        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(0.5, 0), size=(1.2, 1.2))
+        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-0.5, 0), size=(0.3, 0.3))
+        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(0.5, 0), size=(0.3, 0.3))
         leftStim.draw()
         rightStim.draw()
         win.flip()
@@ -234,17 +234,17 @@ def exp_run(win, kb, settings, trialseq, subdata):
             with open(settings.outfile, 'a') as f:
                 f.write('\n' + ','.join(subdata))
             
-            if trialseq.blocknum[i] < settings.TotalBlocks:
-                # Reset block-level data arrays for the next block
-                blockdata.blockNum = np.array([], dtype=object)
-                blockdata.cond = np.array([], dtype=object)
-                blockdata.stimAssign = np.array([], dtype=object)
-                blockdata.response = np.array([], dtype=object)
-                blockdata.RT = np.array([], dtype=object)
-                blockdata.points_trial = np.array([], dtype=object)
-                blockdata.acc = np.array([], dtype=object)
-                phase_hits = []
-                
-                # Optional: countdown before next block
-                show_static_countdown(win)
+        if trialseq.blocknum[i] < settings.TotalBlocks:
+            # Reset block-level data arrays for the next block
+            blockdata.blockNum = np.array([], dtype=object)
+            blockdata.cond = np.array([], dtype=object)
+            blockdata.stimAssign = np.array([], dtype=object)
+            blockdata.response = np.array([], dtype=object)
+            blockdata.RT = np.array([], dtype=object)
+            blockdata.points_trial = np.array([], dtype=object)
+            blockdata.acc = np.array([], dtype=object)
+            phase_hits = []
+            
+            # Optional: countdown before next block
+            show_static_countdown(win)
     
