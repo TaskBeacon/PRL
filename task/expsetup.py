@@ -70,7 +70,7 @@ def exp_setup(
     win = visual.Window(
         size=win_size,
         monitor="testMonitor",
-        units="norm",
+        units="deg",
         screen=1,
         color=bg_color,
         fullscr=True,

@@ -1,4 +1,4 @@
-from psyflow.screenflow import  *
+from psyflow.screenflow import *
 from task.expsetup import exp_setup
 from task.trialcontrol import generate_trial_seq
 from task.expcontrol import exp_run
