@@ -1,6 +1,7 @@
 from psychopy import visual, event, core, logging
 import numpy as np
 import pandas as pd
+import os
 from psyflow.screenflow import show_static_countdown
 
 def exp_run(win, kb, settings, trialseq, subdata):
@@ -77,8 +78,8 @@ def exp_run(win, kb, settings, trialseq, subdata):
         # --- 2. Stimulus presentation ---
         # Get stimulus assignment for this trial from trialseq.stims (a dict with keys "left" and "right")
         stim_assign = trialseq.stims[i]
-        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-0.5, 0), size=(0.8, 0.8))
-        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(0.5, 0), size=(0.8, 0.8))
+        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-0.5, 0), size=(1.2, 1.2))
+        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(0.5, 0), size=(1.2, 1.2))
         leftStim.draw()
         rightStim.draw()
         win.flip()
@@ -97,6 +98,24 @@ def exp_run(win, kb, settings, trialseq, subdata):
                 chosen_side = None
         else:
             chosen_side = None
+        
+        # --- Highlight the chosen stimulus ---
+        if chosen_side is not None:
+            # Determine which stimulus to highlight by using the same positions and size multipliers.
+            if chosen_side == "left":
+                highlight = visual.Rect(win, width=0.8*1.2, height=0.8*1.2, pos=(-0.5, 0),
+                                        lineColor='red', lineWidth=3)
+            else:  # chosen_side == "right"
+                highlight = visual.Rect(win, width=0.8*1.2, height=0.8*1.2, pos=(0.5, 0),
+                                        lineColor='red', lineWidth=3)
+            
+            # Redraw the original stimuli and add the highlight box on top.
+            leftStim.draw()
+            rightStim.draw()
+            highlight.draw()
+            win.flip()
+            # Display the highlight for a brief moment so the subject sees their choice.
+            core.wait(0.5)
 
         # --- 4. Determine Correctness ---
         # Using trialseq.conditions (either "AB" or "BA") and settings.current_correct,
@@ -158,7 +177,8 @@ def exp_run(win, kb, settings, trialseq, subdata):
         # Append block-level data (using np.hstack to update arrays)
         blockdata.blockNum = np.hstack((blockdata.blockNum, trialseq.blocknum[i]))
         blockdata.cond = np.hstack((blockdata.cond, cond))
-        blockdata.stimAssign = np.hstack((blockdata.stimAssign, [stim_assign]))
+        short_stim_assign = {side: os.path.basename(path) for side, path in stim_assign.items()}
+        blockdata.stimAssign = np.hstack((blockdata.stimAssign, [short_stim_assign]))
         blockdata.response = np.hstack((blockdata.response, chosen_side if chosen_side is not None else 0))
         blockdata.RT = np.hstack((blockdata.RT, int(RT * 1000)))
         blockdata.points_trial = np.hstack((blockdata.points_trial, points_trial))
@@ -214,16 +234,17 @@ def exp_run(win, kb, settings, trialseq, subdata):
             with open(settings.outfile, 'a') as f:
                 f.write('\n' + ','.join(subdata))
             
-            # Reset block-level data arrays for the next block
-            blockdata.blockNum = np.array([], dtype=object)
-            blockdata.cond = np.array([], dtype=object)
-            blockdata.stimAssign = np.array([], dtype=object)
-            blockdata.response = np.array([], dtype=object)
-            blockdata.RT = np.array([], dtype=object)
-            blockdata.points_trial = np.array([], dtype=object)
-            blockdata.acc = np.array([], dtype=object)
-            phase_hits = []
-            
-            # Optional: countdown before next block
-            show_static_countdown(win)
+            if trialseq.blocknum[i] < settings.TotalBlocks:
+                # Reset block-level data arrays for the next block
+                blockdata.blockNum = np.array([], dtype=object)
+                blockdata.cond = np.array([], dtype=object)
+                blockdata.stimAssign = np.array([], dtype=object)
+                blockdata.response = np.array([], dtype=object)
+                blockdata.RT = np.array([], dtype=object)
+                blockdata.points_trial = np.array([], dtype=object)
+                blockdata.acc = np.array([], dtype=object)
+                phase_hits = []
+                
+                # Optional: countdown before next block
+                show_static_countdown(win)
     
