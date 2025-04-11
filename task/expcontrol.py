@@ -1,7 +1,7 @@
-from psychopy import visual, event, core, logging
+import os
 import numpy as np
 import pandas as pd
-import os
+from psychopy import visual, event, core, logging
 from psyflow.screenflow import show_static_countdown
 
 def exp_run(win, kb, settings, trialseq, subdata):
@@ -11,11 +11,14 @@ def exp_run(win, kb, settings, trialseq, subdata):
     Trial procedure:
       1. Fixation cross for settings.fixDuration.
       2. Two stimulus images (left/right) are displayed for settings.cueDuration.
-      3. A response is collected (using settings.keyList).
+      3. A response is collected (using settings.keyList). 
+         The cue and images are displayed for a fixed duration, but as soon as the key is pressed,
+         a red rectangle is drawn around the chosen image for the remainder of the cue period.
       4. Feedback is provided for settings.fbDuration:
             - If the response is correct (matches the stimulus on the currently rewarded side),
               a reward (+10) is given with a certain probability (settings.win_prob during acquisition,
-              settings.rev_win_prob after reversal); otherwise, 0 points.
+              settings.rev_win_prob after reversal); otherwise, points are deducted.
+            - The random value (rand_val) used for deciding feedback and the win probability are logged.
       5. An inter-trial interval (ITI) is shown.
       
     Additionally, after each trial the code checks (using a sliding window of the last 10 trials)
@@ -39,10 +42,8 @@ def exp_run(win, kb, settings, trialseq, subdata):
     BlockFeedback = visual.TextStim(win, height=0.8, wrapWidth=25, color='black', pos=[0, 0])
     
     total_points = 0
-    
-    # For reversal criterion: maintain a sliding window (last 10 trials) of hits
     phase_hits = []
-    
+
     # Initialize reinforcement contingency if not already present.
     if not hasattr(settings, 'current_correct'):
         settings.current_correct = "stima"  # default during acquisition
@@ -53,14 +54,22 @@ def exp_run(win, kb, settings, trialseq, subdata):
     # Temporary container for block-level data
     class blockdata:
         pass
+
     # Initialize empty block-level arrays:
     blockdata.blockNum = np.array([], dtype=object)
-    blockdata.cond = np.array([], dtype=object)       # conditions ("AB"/"BA")
-    blockdata.stimAssign = np.array([], dtype=object)   # the image assignment (dict for each trial)
-    blockdata.response = np.array([], dtype=object)     # response key
+    blockdata.cond = np.array([], dtype=object)       # conditions ("AB" / "BA")
+    blockdata.stimAssign = np.array([], dtype=object)   # dictionary of stimulus assignment (using just basenames)
+    blockdata.response = np.array([], dtype=object)     # chosen side
     blockdata.RT = np.array([], dtype=object)           # reaction times (ms)
     blockdata.points_trial = np.array([], dtype=object)   # trial points
     blockdata.acc = np.array([], dtype=object)          # accuracy (1=hit, 0=miss)
+
+    # Extra fields to log:
+    blockdata.correctSide = np.array([], dtype=object)  # the correct side for the trial
+    blockdata.winProb = np.array([])                    # win probability used for the trial
+    blockdata.randVal = np.array([])                    # random number used for feedback decision
+    blockdata.isReversal = np.array([])                 # reversal flag (1 if reversal occurred on that trial)
+
     blockdata.DATA = None  # will hold stacked data for the block
 
     # Loop through all trials
@@ -78,50 +87,52 @@ def exp_run(win, kb, settings, trialseq, subdata):
         # --- 2. Stimulus presentation ---
         # Get stimulus assignment for this trial from trialseq.stims (a dict with keys "left" and "right")
         stim_assign = trialseq.stims[i]
-        stim_size = (0.3, 0.3) 
-        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-0.5, 0), size=stim_size)
-        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(0.5, 0), size=stim_size)
+        # stim_size can be in the window's units (e.g., norm, deg, or pix)
+        stim_size = (5, 5)
+        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-2, 0), size=stim_size)
+        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(2, 0), size=stim_size)
+
+        # Start the cue display and response collection:
+        cue_clock = core.Clock()
+        chosen_side = None
+        response_key = None
+        RT = None
+
+        # Draw the initial cue
         leftStim.draw()
         rightStim.draw()
         win.flip()
-        core.wait(settings.cueDuration)
-        
-        # --- 3. Response Collection ---
-        resp = event.waitKeys(keyList=settings.keyList, maxWait=settings.cueDuration)
-        RT = kb.clock.getTime()
-        if resp:
-            response_key = resp[0]
-            if response_key == settings.left_key:
-                chosen_side = "left"
-            elif response_key == settings.right_key:
-                chosen_side = "right"
-            else:
-                chosen_side = None
-        else:
-            chosen_side = None
-        
-        # --- Highlight the chosen stimulus ---
-        if chosen_side is not None:
-        # Slightly bigger box than the stim
-            box_width = stim_size[0] * 1.1
-            box_height = stim_size[1] * 1.1
-            if chosen_side == "left":
-                highlight = visual.Rect(win, width=box_width, height=box_height, pos=(-0.5, 0),
-                                        lineColor='red', lineWidth=3)
-            else:
-                highlight = visual.Rect(win, width=box_width, height=box_height, pos=(0.5, 0),
-                                        lineColor='red', lineWidth=3)
 
-            # Redraw
-            leftStim.draw()
-            rightStim.draw()
-            highlight.draw()
-            win.flip()
-            core.wait(0.5)
+        # During the cue duration, monitor for a response.
+        while cue_clock.getTime() < settings.cueDuration:
+            keys = event.getKeys(keyList=settings.keyList, timeStamped=cue_clock)
+            # When a response is received, record it if it hasn't been recorded yet.
+            if keys and chosen_side is None:
+                response_key, RT = keys[0]
+                if response_key == settings.left_key:
+                    chosen_side = "left"
+                elif response_key == settings.right_key:
+                    chosen_side = "right"
+                
+                # Prepare a highlight box (slightly larger than the stimulus)
+                box_width = stim_size[0] * 0.6
+                box_height = stim_size[1] * 0.8
+                if chosen_side == "left":
+                    highlight = visual.Rect(win, width=box_width, height=box_height, pos=(-2, 0),
+                                            lineColor='red', lineWidth=3)
+                elif chosen_side == "right":
+                    highlight = visual.Rect(win, width=box_width, height=box_height, pos=(2, 0),
+                                            lineColor='red', lineWidth=3)
+                # Redraw the cue with the highlight overlaid.
+                leftStim.draw()
+                rightStim.draw()
+                highlight.draw()
+                win.flip()
+        # If no response was made, record RT as full cueDuration.
+        if RT is None:
+            RT = settings.cueDuration
 
         # --- 4. Determine Correctness ---
-        # Using trialseq.conditions (either "AB" or "BA") and settings.current_correct,
-        # determine the correct side.
         cond = trialseq.conditions[i]
         if settings.current_correct == "stima":
             correct_side = "left" if cond == "AB" else "right"
@@ -129,54 +140,51 @@ def exp_run(win, kb, settings, trialseq, subdata):
             correct_side = "left" if cond == "BA" else "right"
         else:
             correct_side = None
-
+        
         hit = (chosen_side == correct_side) if (chosen_side is not None) else False
 
-        # Append the hit value for reversal checking.
+        # Append hit for reversal checking.
         phase_hits.append(hit)
         if len(phase_hits) > 10:
             phase_hits.pop(0)
 
         # --- 5. Feedback (Probabilistic) ---
-         # Use acquisition probability if no reversal has occurred; else reversal probability.
         if settings.reversal_count == 0:
             win_prob = settings.win_prob
         else:
-            win_prob = settings.rev_win_prob # can be same as acq_prob
-        # If hit, deliver feedback probabilistically:
+            win_prob = settings.rev_win_prob
+
+        rand_val = np.random.rand()  # Use one random value per trial
         if hit:
-            if np.random.rand() < win_prob:
-                outcome = "Correct"
-                points_trial = 10
-            else:
-                outcome = "Prob Error"
-                points_trial = -10
+            outcome = "Correct" if rand_val < win_prob else "Prob Error"
+            points_trial = 10 if rand_val < win_prob else -10
         else:
-            # For non-hit responses, use the complementary probability (1 - win_prob)
-            if np.random.rand() < (1 - win_prob):
-                outcome = "Lucky"
-                points_trial = 10
-            else:
-                outcome = "Incorrect"
-                points_trial = -10
+            outcome = "Lucky" if rand_val < (1 - win_prob) else "Incorrect"
+            points_trial = 10 if rand_val < (1 - win_prob) else -10
 
         total_points += points_trial
 
+        # Log trial information including the new parameters.
+        logging.data(
+            f"Trial {i+1}: Block={trialseq.blocknum[i]}, Condition={cond}, "
+            f"ChosenSide={chosen_side}, CorrectSide={correct_side}, "
+            f"Hit={hit}, RT={int(RT*1000)}ms, Points={points_trial}, TotalPoints={total_points}, "
+            f"RandVal={rand_val:.4f}, WinProb={win_prob:.2f}, Outcome={outcome}, "
+            f"Reversals={settings.reversal_count}, CurrentCorrect={settings.current_correct}"
+        )
+
+        # --- 6. Display feedback ---
         feedback_text.text = f"{outcome}\nTotal points: {total_points}"
         feedback_text.draw()
         win.flip()
         core.wait(settings.fbDuration)
         
-        # --- 6. ITI ---
+        # --- 7. ITI ---
         fix.draw()
         win.flip()
         core.wait(settings.ITI)
         
-        logging.data(f"Trial {i+1}: Block={trialseq.blocknum[i]}, Condition={cond}, ChosenSide={chosen_side}, "
-                     f"CorrectSide={correct_side}, Hit={hit}, RT={int(RT*1000)}ms, Points={points_trial}, "
-                     f"TotalPoints={total_points}, CurrentCorrect={settings.current_correct}")
-
-        # Append block-level data (using np.hstack to update arrays)
+        # Append block-level data
         blockdata.blockNum = np.hstack((blockdata.blockNum, trialseq.blocknum[i]))
         blockdata.cond = np.hstack((blockdata.cond, cond))
         short_stim_assign = {side: os.path.basename(path) for side, path in stim_assign.items()}
@@ -185,20 +193,27 @@ def exp_run(win, kb, settings, trialseq, subdata):
         blockdata.RT = np.hstack((blockdata.RT, int(RT * 1000)))
         blockdata.points_trial = np.hstack((blockdata.points_trial, points_trial))
         blockdata.acc = np.hstack((blockdata.acc, 1 if hit else 0))
+        blockdata.correctSide = np.hstack((blockdata.correctSide, correct_side))
+        blockdata.winProb = np.hstack((blockdata.winProb, win_prob))
+        blockdata.randVal = np.hstack((blockdata.randVal, rand_val))
+        # Mark reversal flag as 0 by default; it will be set to 1 if reversal is triggered.
+        blockdata.isReversal = np.hstack((blockdata.isReversal, 0))
         
-        # --- 7. Check Reversal Criterion ---
+        # --- 8. Check Reversal Criterion ---
         if len(phase_hits) >= 10 and sum(phase_hits) >= 9:
             old_correct = settings.current_correct
             settings.current_correct = "stima" if settings.current_correct == "stimb" else "stimb"
             settings.reversal_count += 1
             phase_hits = []  # Reset window after reversal
+            # Update reversal flag for this trial in blockdata:
+            blockdata.isReversal[-1] = 1
             logging.data(f"Reversal triggered at trial {i+1}: {old_correct} -> {settings.current_correct}")
-            reversal_msg = visual.TextStim(win, text="Rule Change!", height=1.2, color="blue", pos=[0,0])
-            reversal_msg.draw()
-            win.flip()
-            core.wait(1.0)
+            # reversal_msg = visual.TextStim(win, text="Rule Change!", height=1.2, color="blue", pos=[0,0])
+            # reversal_msg.draw()
+            # win.flip()
+            # core.wait(1.0)
         
-        # --- 8. End-of-Block Processing ---
+        # --- 9. End-of-Block Processing ---
         if trialseq.BlockEndIdx[i] == 1:
             # Calculate block feedback: mean RT for go trials and accuracy.
             go_trials = np.where(blockdata.response != 0)[0]
@@ -215,7 +230,7 @@ def exp_run(win, kb, settings, trialseq, subdata):
             win.flip()
             event.waitKeys(keyList=['space'])
             
-            # Stack block-level data into a matrix (for saving)
+            # Stack block-level data into a matrix for saving.
             blockdata_np = {
                 "Block": blockdata.blockNum.reshape(-1, 1),
                 "Condition": blockdata.cond.reshape(-1, 1),
@@ -223,7 +238,11 @@ def exp_run(win, kb, settings, trialseq, subdata):
                 "Response": blockdata.response.reshape(-1, 1),
                 "RT": blockdata.RT.reshape(-1, 1),
                 "TrialPoints": blockdata.points_trial.reshape(-1, 1),
-                "Accuracy": blockdata.acc.reshape(-1, 1)
+                "Accuracy": blockdata.acc.reshape(-1, 1),
+                "CorrectSide": blockdata.correctSide.reshape(-1, 1),
+                "WinProb": blockdata.winProb.reshape(-1, 1),
+                "RandVal": blockdata.randVal.reshape(-1, 1),
+                "IsReversal": blockdata.isReversal.reshape(-1, 1)
             }
             temp = np.hstack(list(blockdata_np.values()))
             if trialseq.blocknum[i] == 1:
@@ -231,13 +250,16 @@ def exp_run(win, kb, settings, trialseq, subdata):
             else:
                 blockdata.DATA = np.vstack([blockdata.DATA, temp])
             
-            df = pd.DataFrame(blockdata.DATA, columns=["Block", "Condition", "StimAssign", "Response", "RT", "TrialPoints", "Accuracy"])
+            df = pd.DataFrame(blockdata.DATA, columns=[
+                "Block", "Condition", "StimAssign", "Response", "RT", 
+                "TrialPoints", "Accuracy", "CorrectSide", "WinProb", "RandVal", "IsReversal"
+            ])
             df.to_csv(settings.outfile, index=False)
             with open(settings.outfile, 'a') as f:
                 f.write('\n' + ','.join(subdata))
             
             if trialseq.blocknum[i] < settings.TotalBlocks:
-                # Reset block-level data arrays for the next block
+                # Reset block-level data arrays for the next block.
                 blockdata.blockNum = np.array([], dtype=object)
                 blockdata.cond = np.array([], dtype=object)
                 blockdata.stimAssign = np.array([], dtype=object)
@@ -245,8 +267,11 @@ def exp_run(win, kb, settings, trialseq, subdata):
                 blockdata.RT = np.array([], dtype=object)
                 blockdata.points_trial = np.array([], dtype=object)
                 blockdata.acc = np.array([], dtype=object)
+                blockdata.correctSide = np.array([], dtype=object)
+                blockdata.winProb = np.array([])
+                blockdata.randVal = np.array([])
+                blockdata.isReversal = np.array([])
                 phase_hits = []
                 
-                # Optional: countdown before next block
+                # Optional: countdown before next block.
                 show_static_countdown(win)
-    

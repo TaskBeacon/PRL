@@ -3,9 +3,9 @@ from task.expsetup import exp_setup
 from task.trialcontrol import generate_trial_seq
 from task.expcontrol import exp_run
 # all
-subdata = get_subject_info()
+# subdata = get_subject_info()
 subdata = ['144', '23', 'Male', 'Caucasian']
-win, kb, settings = exp_setup(subdata)
+win, kb, settings = exp_setup(subdata, TotalBlocks=2, TotalTrials=30)
 trialseq = generate_trial_seq(settings)
 print(trialseq.conditions)
 print(trialseq.stims)

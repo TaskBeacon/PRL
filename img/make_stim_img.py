@@ -191,6 +191,6 @@ generate_nushu_symbols(
     stroke=5,
     stroke_range_dict=stroke_to_unicode_range,
     bg_color="gray",
-    img_size=128,
-    font_size=90
+    img_size=512,
+    font_size=300
 )
