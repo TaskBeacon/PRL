@@ -10,10 +10,10 @@ def exp_setup(
     left_key='q',
     right_key='p',
     win_size=(1920, 1080),
-    bg_color='white',
+    bg_color='gray',
     TotalBlocks=2,
     TotalTrials=20,
-    img_path="E:/xhmhc/TaskBeacon/PRL/stim_nushu",
+    img_path="E:/xhmhc/TaskBeacon/PRL/img",
     fixDuration=0.5,
     ITI=0.5,
     cueDuration=1.5,
@@ -99,6 +99,9 @@ def exp_setup(
     settings.left_key = left_key
     settings.right_key = right_key
     settings.keyList = [left_key, right_key]
+    settings.current_correct = 'stima'
+    settings.win_prob = 0.8
+    settings.rev_win_prob = 0.8
 
     # Output file naming based on subject ID and current datetime
     dt_string = datetime.now().strftime("%H%M%d%m")

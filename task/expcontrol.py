@@ -4,246 +4,240 @@ import pandas as pd
 from psyflow.screenflow import show_static_countdown
 
 def exp_run(win, kb, settings, trialseq, subdata):
+    """
+    Runs the Probabilistic Reversal Learning (PRL) task.
+    
+    Trial procedure:
+      1. Fixation cross for settings.fixDuration.
+      2. Two stimulus images (left/right) are displayed for settings.cueDuration.
+      3. A response is collected (using settings.keyList).
+      4. Feedback is provided for settings.fbDuration:
+            - If the response is correct (matches the stimulus on the currently rewarded side),
+              a reward (+10) is given with a certain probability (settings.win_prob during acquisition,
+              settings.rev_win_prob after reversal); otherwise, 0 points.
+      5. An inter-trial interval (ITI) is shown.
+      
+    Additionally, after each trial the code checks (using a sliding window of the last 10 trials)
+    whether the reversal criterion is met (if 9 out of 10 trials are correct). If so, it reverses
+    the reinforcement contingency by swapping settings.current_correct and increments settings.reversal_count.
+    
+    Block-level data is accumulated in a temporary container (blockdata). At the end of each block,
+    block-wise feedback is shown, and the block data is saved.
+    """
+    # Setup logging
     log_filename = settings.outfile.replace('.csv', '.log')
     logging.LogFile(log_filename, level=logging.DATA, filemode='a')
     logging.console.setLevel(logging.INFO)
     event.globalKeys.clear()
     event.globalKeys.add(key='q', modifiers=['ctrl'], func=core.quit)
-    event.Mouse(visible=False)  # hide mouse cursor
-    # Prepare visual components
-    fix = visual.TextStim(win, height=1, text="+", wrapWidth=10, color='black', pos=[0, 0])
-    warning = visual.TextStim(win, text="TOO SLOW!!!", height=.6, wrapWidth=10, color='red', pos=[0, 0])
-    BlockFeedback = visual.TextStim(win, height=.6, wrapWidth=25, color='black', pos=[0, 0])
+    event.Mouse(visible=False)
 
-    # Extract shortcut parameters from settings
-    LeftSSD = settings.initSSD     # Initial stop-signal delay for left trials
-    RightSSD = settings.initSSD    # Initial stop-signal delay for right trials
-    stairsize = settings.staircase # Step size for staircase SSD adjustment
-    keyList = settings.keyList     # Allowed response keys
-    left_key = settings.left_key   # Key for left arrow
-    right_key = settings.right_key # Key for right arrow
+    # Prepare common visual components
+    fix = visual.TextStim(win, text="+", height=1, color='black', pos=[0, 0])
+    feedback_text = visual.TextStim(win, height=0.8, wrapWidth=25, color='black', pos=[0, 0])
+    BlockFeedback = visual.TextStim(win, height=0.8, wrapWidth=25, color='black', pos=[0, 0])
+    
+    total_points = 0
+    trial_data = []  # container for trial-level data
+    
+    # For reversal criterion: maintain a sliding window (last 10 trials) of hits
+    phase_hits = []
+    
+    # Initialize reinforcement contingency if not already present.
+    if not hasattr(settings, 'current_correct'):
+        settings.current_correct = "stima"  # default during acquisition
+    if not hasattr(settings, 'reversal_count'):
+        settings.reversal_count = 0
 
+    # ---------------------------
     # Temporary container for block-level data
     class blockdata:
         pass
-
-    # Initialize empty data fields
-    blockdata.arrow = []      # Presented arrow direction (1=left, 2=right)
-    blockdata.resp = []       # Response key (1=left_key, 2=right_key, 0=none)
-    blockdata.LeftSSD = []    # Left SSD
-    blockdata.RightSSD = []   # Right SSD   
-    blockdata.RT = []         # Reaction time
-    blockdata.acc = []        # Accuracy (1=correct, 0=wrong, -1=miss, 3=successful stop, 4=failed stop)
-    blockdata.DATA = []       # Matrix for saving after each block
-    blockdata.GOidx = []      # 1=Go trial, 0=Stop trial
-    blockdata.blockNum = []   # Block number
+    # Initialize empty block-level arrays:
+    blockdata.blockNum = np.array([], dtype=object)
+    blockdata.cond = np.array([], dtype=object)       # conditions ("AB"/"BA")
+    blockdata.stimAssign = np.array([], dtype=object)   # the image assignment (dict for each trial)
+    blockdata.response = np.array([], dtype=object)     # response key
+    blockdata.RT = np.array([], dtype=object)           # reaction times (ms)
+    blockdata.points_trial = np.array([], dtype=object)   # trial points
+    blockdata.acc = np.array([], dtype=object)          # accuracy (1=hit, 0=miss)
+    blockdata.DATA = None  # will hold stacked data for the block
 
     # Loop through all trials
-    for i in range(len(trialseq.conditions)):
+    n_trials = len(trialseq.conditions)
+    for i in range(n_trials):
         kb.clock.reset()
-        kb.clearEvents()
-        StopSignal = []
-
-        # Choose stimulus type for this trial
-        if trialseq.stims[i] == 'left':  # left arrow
-            arrow = settings.Larrow
-            if trialseq.conditions[i] == 'stop':
-                if settings.useUpArrowStop:
-                    StopSignal = settings.UparrowSTOP
-                else:
-                    StopSignal = settings.LarrowSTOP
-        else:  # right arrow
-            arrow = settings.Rarrow
-            if trialseq.conditions[i] == 'stop':
-                if settings.useUpArrowStop:
-                    StopSignal = settings.UparrowSTOP
-                else:
-                    StopSignal = settings.RarrowSTOP
-
+        event.clearEvents()
         trial_onset = core.getTime()
 
-        # Fixation cross
+        # --- 1. Fixation ---
         fix.draw()
         win.flip()
-        core.wait(0.5)
-
-        # Show black arrow (Go stimulus)
-        arrow.draw()
+        core.wait(settings.fixDuration)
+        
+        # --- 2. Stimulus presentation ---
+        # Get stimulus assignment for this trial from trialseq.stims (a dict with keys "left" and "right")
+        stim_assign = trialseq.stims[i]
+        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-0.5, 0), size=(0.8, 0.8))
+        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(0.5, 0), size=(0.8, 0.8))
+        leftStim.draw()
+        rightStim.draw()
         win.flip()
-        arrow_onset = core.getTime()
-
-        # -------------------------
-        # ▶️ Go Trial
-        # -------------------------
-        if trialseq.conditions[i] == 'go':
-            blockdata.GOidx = np.hstack((blockdata.GOidx, 1))  # Mark as Go trial
-            event.clearEvents()
-            resp = event.waitKeys(maxWait=settings.arrowDuration, keyList=keyList)
-
-            if resp:  # A response was made
-                RT = core.getTime() - arrow_onset
-                key = resp[0]
-                if trialseq.stims[i] == 'left' and key == left_key:
-                    acc = 1  # correct
-                elif trialseq.stims[i] == 'right' and key == right_key:
-                    acc = 1  # correct
-                else:
-                    acc = 0  # wrong key
-            else:  # No response
-                acc = -1
-                RT = 0
-                warning.draw()
-                win.flip()
-                core.wait(settings.trialDuration - (core.getTime() - trial_onset))
-
-        # -------------------------
-        # ⛔ Stop Trial
-        # -------------------------
-        else:
-            blockdata.GOidx = np.hstack((blockdata.GOidx, 0))  # Mark as Stop trial
-            event.clearEvents()
-
-            # Wait for SSD (delay before showing StopSignal)
-            if trialseq.stims[i] == 'left':
-                core.wait(LeftSSD / 1000)
+        core.wait(settings.cueDuration)
+        
+        # --- 3. Response Collection ---
+        resp = event.waitKeys(keyList=settings.keyList, maxWait=settings.cueDuration)
+        RT = kb.clock.getTime()
+        if resp:
+            response_key = resp[0]
+            if response_key == settings.left_key:
+                chosen_side = "left"
+            elif response_key == settings.right_key:
+                chosen_side = "right"
             else:
-                core.wait(RightSSD / 1000)
-
-            # Show red arrow (Stop signal)
-            StopSignal.draw()
-            win.flip()
-            arrow_onset = core.getTime()
-
-            # Wait for remaining response time
-            if trialseq.stims[i] == 'left': # left arrow
-                resp = event.waitKeys(maxWait=settings.arrowDuration - LeftSSD / 1000, keyList=keyList)
-                if resp:
-                    acc = 4  # failed to stop
-                    RT = core.getTime() - arrow_onset
-                    LeftSSD = max(LeftSSD - stairsize, 0)
-                else:
-                    acc = 3  # successfully stopped
-                    RT = 0
-                    LeftSSD += stairsize
-            else:
-                resp = event.waitKeys(maxWait=settings.arrowDuration - RightSSD / 1000, keyList=keyList)
-                if resp:
-                    acc = 4 # failed to stop
-                    RT = core.getTime() - arrow_onset
-                    RightSSD = max(RightSSD - stairsize, 0)
-                else:
-                    acc = 3 # successfully stopped
-                    RT = 0
-                    RightSSD += stairsize
-            
-        # save resp_code
-        if resp and resp[0] == left_key:
-            resp_code = left_key
-        elif resp and resp[0] == right_key:
-            resp_code = right_key
+                chosen_side = None
         else:
-            resp_code = 0
-        logging.data(f"Trial {i+1}: Block={trialseq.blocknum[i]}, Type={'GO' if trialseq.conditions[i]=='go' else 'STOP'}, "
-            f"Arrow={trialseq.stims[i]}, Resp={resp_code}, ACC={acc}, RT={int(RT*1000)}ms")
-        # Save data for this trial
-        blockdata.RT = np.hstack((blockdata.RT, int(RT * 1000)))  # Convert to ms
-        blockdata.arrow = np.hstack((blockdata.arrow, [trialseq.stims[i]]))
-        blockdata.resp = np.hstack((blockdata.resp, resp_code))
+            chosen_side = None
+
+        # --- 4. Determine Correctness ---
+        # Using trialseq.conditions (either "AB" or "BA") and settings.current_correct,
+        # determine the correct side.
+        cond = trialseq.conditions[i]
+        if settings.current_correct == "stima":
+            correct_side = "left" if cond == "AB" else "right"
+        elif settings.current_correct == "stimb":
+            correct_side = "left" if cond == "BA" else "right"
+        else:
+            correct_side = None
+
+        hit = (chosen_side == correct_side) if (chosen_side is not None) else False
+
+        # Append the hit value for reversal checking.
+        phase_hits.append(hit)
+        if len(phase_hits) > 10:
+            phase_hits.pop(0)
+
+        # --- 5. Feedback (Probabilistic) ---
+        # If hit, deliver feedback probabilistically:
+        if hit:
+            # Use acquisition probability if no reversal has occurred; else reversal probability.
+            if settings.reversal_count == 0:
+                win_prob = settings.win_prob
+            else:
+                win_prob = settings.rev_win_prob # can be same as acq_prob
+            if np.random.rand() < win_prob:
+                outcome = "Correct"
+                points_trial = 10
+            else:
+                outcome = "Prob Error"
+                points_trial = -10
+        else:
+            outcome = "Incorrect"
+            points_trial = -10
+
+        total_points += points_trial
+
+        feedback_text.text = f"{outcome}\nTotal points: {total_points}"
+        feedback_text.draw()
+        win.flip()
+        core.wait(settings.fbDuration)
+        
+        # --- 6. ITI ---
+        fix.draw()
+        win.flip()
+        core.wait(settings.ITI)
+        
+        # --- Record Trial Data ---
+        trial_data.append({
+            "Trial": i+1,
+            "Block": trialseq.blocknum[i],
+            "Condition": cond,
+            "ChosenSide": chosen_side,
+            "CorrectSide": correct_side,
+            "Hit": hit,
+            "RT": int(RT * 1000),  # in ms
+            "Points": points_trial,
+            "TotalPoints": total_points,
+            "CurrentCorrect": settings.current_correct,
+            "ReversalCount": settings.reversal_count
+        })
+        logging.data(f"Trial {i+1}: Block={trialseq.blocknum[i]}, Condition={cond}, ChosenSide={chosen_side}, "
+                     f"CorrectSide={correct_side}, Hit={hit}, RT={int(RT*1000)}ms, Points={points_trial}, "
+                     f"TotalPoints={total_points}, CurrentCorrect={settings.current_correct}")
+
+        # Append block-level data (using np.hstack to update arrays)
         blockdata.blockNum = np.hstack((blockdata.blockNum, trialseq.blocknum[i]))
-        blockdata.acc = np.hstack((blockdata.acc, acc))
-        blockdata.LeftSSD = np.hstack((blockdata.LeftSSD, LeftSSD))
-        blockdata.RightSSD = np.hstack((blockdata.RightSSD, RightSSD))
-
-        # Inter-trial interval (only if not a miss)
-        if acc != -1:
-            fix.draw()
+        blockdata.cond = np.hstack((blockdata.cond, cond))
+        blockdata.stimAssign = np.hstack((blockdata.stimAssign, [stim_assign]))
+        blockdata.response = np.hstack((blockdata.response, chosen_side if chosen_side is not None else 0))
+        blockdata.RT = np.hstack((blockdata.RT, int(RT * 1000)))
+        blockdata.points_trial = np.hstack((blockdata.points_trial, points_trial))
+        blockdata.acc = np.hstack((blockdata.acc, 1 if hit else 0))
+        
+        # --- 7. Check Reversal Criterion ---
+        if len(phase_hits) >= 10 and sum(phase_hits) >= 9:
+            old_correct = settings.current_correct
+            settings.current_correct = "stima" if settings.current_correct == "stimb" else "stimb"
+            settings.reversal_count += 1
+            phase_hits = []  # Reset window after reversal
+            logging.data(f"Reversal triggered at trial {i+1}: {old_correct} -> {settings.current_correct}")
+            reversal_msg = visual.TextStim(win, text="Rule Change!", height=1.2, color="blue", pos=[0,0])
+            reversal_msg.draw()
             win.flip()
-            core.wait(2.5 - (core.getTime() - trial_onset))
-
-        # -------------------------------------
-        # End of block → compute feedback
-        # -------------------------------------
+            core.wait(1.0)
+        
+        # --- 8. End-of-Block Processing ---
         if trialseq.BlockEndIdx[i] == 1:
-            STOPidx = blockdata.GOidx == 0
-            MISSidx = blockdata.acc == -1
-            RJTidx = STOPidx + MISSidx
-            GOrtOnly = np.delete(blockdata.RT, np.where(RJTidx), 0)
-            meanGOrt = np.mean(GOrtOnly)
-            GOtrials = np.sum(blockdata.GOidx == 1)
-            CorrectGO = np.sum(blockdata.acc == 1)
-            STOPtrials = np.sum(blockdata.GOidx == 0)
-            SuccesfulStop = np.sum(blockdata.acc == 3)
-
-            # Create feedback text
-            BlockFeedback.text = f"End of Block #{trialseq.blocknum[i]}\n"
-            BlockFeedback.text += f"Mean GO RT : {meanGOrt:.2f} ms\n"
-            BlockFeedback.text += f"Accuracy : {CorrectGO / GOtrials * 100:.2f} %\n"
-            BlockFeedback.text += f"p(STOP) : {SuccesfulStop / STOPtrials * 100:.2f} %\n"
-            BlockFeedback.text += "Press SPACE to continue..."
-
-            # Stack trial data into a single matrix
-            blockdata_np = {
-                        "Block": np.array(blockdata.blockNum, dtype=object).reshape(-1, 1),
-                        "TrialType": np.array(['go' if v == 1 else 'stop' for v in blockdata.GOidx], dtype=object).reshape(-1, 1),
-                        "Arrow": np.array(blockdata.arrow, dtype=object).reshape(-1, 1),
-                        "Response": np.array(blockdata.resp, dtype=object).reshape(-1, 1),
-                        "leftSSD": np.array(blockdata.LeftSSD, dtype=object).reshape(-1, 1),
-                        "rightSSD": np.array(blockdata.RightSSD, dtype=object).reshape(-1, 1),
-                        "ResponseType": np.array([{1: 'correct', 0: 'wrong_key', -1: 'miss', 3: 'success_stop', 4: 'fail_stop'}.get(a, 'unknown')
-                                                    for a in blockdata.acc
-                                                ], dtype=object).reshape(-1, 1),
-                        "RT": np.array(blockdata.RT, dtype=object).reshape(-1, 1)}
+            # Calculate block feedback: mean RT for go trials and accuracy.
+            go_trials = np.where(blockdata.response != 0)[0]
+            mean_RT = np.mean(blockdata.RT[go_trials]) if len(go_trials) > 0 else 0
+            accuracy = np.mean(blockdata.acc) * 100 if len(blockdata.acc) > 0 else 0
+            block_points = np.sum(blockdata.points_trial)
             
+            BlockFeedback.text = (f"End of Block #{trialseq.blocknum[i]}\n"
+                                  f"Mean RT: {mean_RT:.0f} ms\n"
+                                  f"Accuracy: {accuracy:.1f}%\n"
+                                  f"Block Points: {block_points}\n"
+                                  "Press SPACE to continue...")
+            BlockFeedback.draw()
+            win.flip()
+            event.waitKeys(keyList=['space'])
+            
+            # Stack block-level data into a matrix (for saving)
+            blockdata_np = {
+                "Block": blockdata.blockNum.reshape(-1, 1),
+                "Condition": blockdata.cond.reshape(-1, 1),
+                "StimAssign": np.array(blockdata.stimAssign).reshape(-1, 1),
+                "Response": blockdata.response.reshape(-1, 1),
+                "RT": blockdata.RT.reshape(-1, 1),
+                "TrialPoints": blockdata.points_trial.reshape(-1, 1),
+                "Accuracy": blockdata.acc.reshape(-1, 1)
+            }
             temp = np.hstack(list(blockdata_np.values()))
-
-            # Save data to block-level matrix
             if trialseq.blocknum[i] == 1:
                 blockdata.DATA = temp
             else:
                 blockdata.DATA = np.vstack([blockdata.DATA, temp])
-
-            # Save to CSV
-            df = pd.DataFrame(blockdata.DATA, columns=["Block", "TrialType", "Arrow", "Response", "leftSSD", "rightSSD", "ResponseType", "RT"])
+            
+            df = pd.DataFrame(blockdata.DATA, columns=["Block", "Condition", "StimAssign", "Response", "RT", "TrialPoints", "Accuracy"])
             df.to_csv(settings.outfile, index=False)
             with open(settings.outfile, 'a') as f:
                 f.write('\n' + ','.join(subdata))
-
-            # Display block feedback (wait for key)
-            while not event.getKeys(keyList=['space']):
-                BlockFeedback.draw()
-                win.flip()
-
-            # Optional feedback based on stopping performance
-            if trialseq.blocknum[i] < settings.TotalBlocks:
-                PerformanceFeedback = visual.TextStim(win, height=.6, wrapWidth=25, color='black', pos=[0, 0])
-                stop_rate = SuccesfulStop / STOPtrials
-                if stop_rate <= .45:
-                    PerformanceFeedback.text = (
-                        "You're fast, but not stopping well.\n"
-                        "Focus more on stopping in the next block.\nThanks."
-                    )
-                elif stop_rate >= .55:
-                    PerformanceFeedback.text = (
-                        "You're stopping well, but responding slowly.\n"
-                        "Try to respond faster in the next block.\nThanks."
-                    )
-                else:
-                    PerformanceFeedback.text = "You're doing great!\nKeep it up!"
-                PerformanceFeedback.text+= "Press SPACE to continue..."
-
-                while not event.getKeys(keyList=['space']):
-                    PerformanceFeedback.draw()
-                    win.flip()
-
-                # Reset data containers for next block
-                blockdata.arrow = []
-                blockdata.resp = []
-                blockdata.LeftSSD = []
-                blockdata.RightSSD = []
-                blockdata.RT = []
-                blockdata.acc = []
-                blockdata.GOidx = []
-                blockdata.blockNum = []
-
-                # Countdown before next block
-                show_static_countdown(win)
+            
+            # Reset block-level data arrays for the next block
+            blockdata.blockNum = np.array([], dtype=object)
+            blockdata.cond = np.array([], dtype=object)
+            blockdata.stimAssign = np.array([], dtype=object)
+            blockdata.response = np.array([], dtype=object)
+            blockdata.RT = np.array([], dtype=object)
+            blockdata.points_trial = np.array([], dtype=object)
+            blockdata.acc = np.array([], dtype=object)
+            phase_hits = []
+            
+            # Optional: countdown before next block
+            show_static_countdown(win)
+    
+    
+    df_all = pd.DataFrame(trial_data)
+    df_all.to_csv(settings.outfile, index=False)
+    return trial_data
