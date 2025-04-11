@@ -38,7 +38,6 @@ def exp_run(win, kb, settings, trialseq, subdata):
     BlockFeedback = visual.TextStim(win, height=0.8, wrapWidth=25, color='black', pos=[0, 0])
     
     total_points = 0
-    trial_data = []  # container for trial-level data
     
     # For reversal criterion: maintain a sliding window (last 10 trials) of hits
     phase_hits = []
@@ -118,13 +117,13 @@ def exp_run(win, kb, settings, trialseq, subdata):
             phase_hits.pop(0)
 
         # --- 5. Feedback (Probabilistic) ---
+         # Use acquisition probability if no reversal has occurred; else reversal probability.
+        if settings.reversal_count == 0:
+            win_prob = settings.win_prob
+        else:
+            win_prob = settings.rev_win_prob # can be same as acq_prob
         # If hit, deliver feedback probabilistically:
         if hit:
-            # Use acquisition probability if no reversal has occurred; else reversal probability.
-            if settings.reversal_count == 0:
-                win_prob = settings.win_prob
-            else:
-                win_prob = settings.rev_win_prob # can be same as acq_prob
             if np.random.rand() < win_prob:
                 outcome = "Correct"
                 points_trial = 10
@@ -132,8 +131,13 @@ def exp_run(win, kb, settings, trialseq, subdata):
                 outcome = "Prob Error"
                 points_trial = -10
         else:
-            outcome = "Incorrect"
-            points_trial = -10
+            # For non-hit responses, use the complementary probability (1 - win_prob)
+            if np.random.rand() < (1 - win_prob):
+                outcome = "Lucky"
+                points_trial = 10
+            else:
+                outcome = "Incorrect"
+                points_trial = -10
 
         total_points += points_trial
 
@@ -147,20 +151,6 @@ def exp_run(win, kb, settings, trialseq, subdata):
         win.flip()
         core.wait(settings.ITI)
         
-        # --- Record Trial Data ---
-        trial_data.append({
-            "Trial": i+1,
-            "Block": trialseq.blocknum[i],
-            "Condition": cond,
-            "ChosenSide": chosen_side,
-            "CorrectSide": correct_side,
-            "Hit": hit,
-            "RT": int(RT * 1000),  # in ms
-            "Points": points_trial,
-            "TotalPoints": total_points,
-            "CurrentCorrect": settings.current_correct,
-            "ReversalCount": settings.reversal_count
-        })
         logging.data(f"Trial {i+1}: Block={trialseq.blocknum[i]}, Condition={cond}, ChosenSide={chosen_side}, "
                      f"CorrectSide={correct_side}, Hit={hit}, RT={int(RT*1000)}ms, Points={points_trial}, "
                      f"TotalPoints={total_points}, CurrentCorrect={settings.current_correct}")
@@ -237,7 +227,3 @@ def exp_run(win, kb, settings, trialseq, subdata):
             # Optional: countdown before next block
             show_static_countdown(win)
     
-    
-    df_all = pd.DataFrame(trial_data)
-    df_all.to_csv(settings.outfile, index=False)
-    return trial_data
