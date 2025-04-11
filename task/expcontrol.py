@@ -89,8 +89,8 @@ def exp_run(win, kb, settings, trialseq, subdata):
         stim_assign = trialseq.stims[i]
         # stim_size can be in the window's units (e.g., norm, deg, or pix)
         stim_size = (5, 5)
-        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-2, 0), size=stim_size)
-        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(2, 0), size=stim_size)
+        leftStim = visual.ImageStim(win, image=stim_assign["left"], pos=(-4, 0), size=stim_size)
+        rightStim = visual.ImageStim(win, image=stim_assign["right"], pos=(4, 0), size=stim_size)
 
         # Start the cue display and response collection:
         cue_clock = core.Clock()
@@ -114,15 +114,15 @@ def exp_run(win, kb, settings, trialseq, subdata):
                 elif response_key == settings.right_key:
                     chosen_side = "right"
                 
-                # Prepare a highlight box (slightly larger than the stimulus)
+                # Prepare a highlight box (slightly smaller than the stimulus)
                 box_width = stim_size[0] * 0.6
                 box_height = stim_size[1] * 0.8
                 if chosen_side == "left":
-                    highlight = visual.Rect(win, width=box_width, height=box_height, pos=(-2, 0),
-                                            lineColor='red', lineWidth=3)
+                    highlight = visual.Rect(win, width=box_width, height=box_height, pos=(-4, -0.3),
+                                            lineColor='black', lineWidth=3)
                 elif chosen_side == "right":
-                    highlight = visual.Rect(win, width=box_width, height=box_height, pos=(2, 0),
-                                            lineColor='red', lineWidth=3)
+                    highlight = visual.Rect(win, width=box_width, height=box_height, pos=(4, -0.3),
+                                            lineColor='black', lineWidth=3)
                 # Redraw the cue with the highlight overlaid.
                 leftStim.draw()
                 rightStim.draw()
@@ -141,7 +141,13 @@ def exp_run(win, kb, settings, trialseq, subdata):
         else:
             correct_side = None
         
-        hit = (chosen_side == correct_side) if (chosen_side is not None) else False
+        # --- 4. Determine Correctness ---
+        if chosen_side is None:
+            # No response, so we consider it as a miss.
+            hit = False
+            correct_side = correct_side  # remains defined from earlier
+        else:
+            hit = (chosen_side == correct_side)
 
         # Append hit for reversal checking.
         phase_hits.append(hit)
@@ -155,12 +161,17 @@ def exp_run(win, kb, settings, trialseq, subdata):
             win_prob = settings.rev_win_prob
 
         rand_val = np.random.rand()  # Use one random value per trial
-        if hit:
-            outcome = "Correct" if rand_val < win_prob else "Prob Error"
-            points_trial = 10 if rand_val < win_prob else -10
+        if chosen_side is None:
+            # Additional condition when no response is made.
+            outcome = "No Response"
+            points_trial = -10
         else:
-            outcome = "Lucky" if rand_val < (1 - win_prob) else "Incorrect"
-            points_trial = 10 if rand_val < (1 - win_prob) else -10
+            if hit:
+                outcome = "Win" if rand_val < win_prob else "Lose"
+                points_trial = 10 if rand_val < win_prob else -10
+            else:
+                outcome = "Win" if rand_val < (1 - win_prob) else "Lose"
+                points_trial = 10 if rand_val < (1 - win_prob) else -10
 
         total_points += points_trial
 
@@ -174,7 +185,7 @@ def exp_run(win, kb, settings, trialseq, subdata):
         )
 
         # --- 6. Display feedback ---
-        feedback_text.text = f"{outcome}\nTotal points: {total_points}"
+        feedback_text.text = f"{outcome}\n Points: {points_trial}"
         feedback_text.draw()
         win.flip()
         core.wait(settings.fbDuration)
