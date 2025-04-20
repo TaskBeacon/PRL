@@ -40,8 +40,8 @@ window:
 # === Task-level settings ===
 task:
   total_blocks: 2
-  total_trials: 10
-  trial_per_block: 5
+  total_trials: 20
+  trial_per_block: 20
   conditions: [AB, BA]
   key_list: [left, right]
   delta: 10 # points unit

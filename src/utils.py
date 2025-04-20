@@ -90,3 +90,80 @@ class Controller:
                     f"[Controller] Reversal #{self.reversal_count}: "
                     f"{old} → {self.current_correct}"
                 )
+
+
+import os
+from PIL import Image, ImageDraw, ImageFont
+# Stroke count to Unicode range mapping (inclusive)
+stroke_to_unicode_range = {
+    1:  (0x1B170, 0x1B170),
+    2:  (0x1B171, 0x1B177),
+    3:  (0x1B178, 0x1B18A),
+    4:  (0x1B18B, 0x1B1A7),
+    5:  (0x1B1A8, 0x1B1D5),
+    6:  (0x1B1DE, 0x1B215),
+    7:  (0x1B216, 0x1B243),
+    8:  (0x1B244, 0x1B283),
+    9:  (0x1B284, 0x1B2AF),
+    10: (0x1B2B0, 0x1B2D5),
+    11: (0x1B2CE, 0x1B2E0),
+    12: (0x1B2E1, 0x1B2ED),
+    13: (0x1B2EE, 0x1B2F3),
+    14: (0x1B2F4, 0x1B2F6),
+    15: (0x1B2F7, 0x1B2F9),
+}
+
+def generate_nushu_symbols(
+font_path,
+output_dir,
+stroke,
+stroke_range_dict,
+bg_color="gray",
+fill_color="white",
+img_size=100,
+font_size=72
+):
+    """
+    Generate Nüshu symbol images for a specific stroke count.
+
+    Args:
+        font_path (str): Path to the NotoSansNushu-Regular.ttf file.
+        output_dir (str): Directory to save the generated images.
+        stroke (int): Stroke count (1–15).
+        stroke_range_dict (dict): Dict mapping stroke count → (start, end) Unicode range.
+        bg_color (str or tuple): Background color (e.g., "white" or (255,255,255)).
+        img_size (int): Width and height of the image in pixels.
+        font_size (int): Size of the character font.
+    """
+    if stroke not in stroke_range_dict:
+        raise ValueError(f"Stroke count {stroke} not valid. Choose from: {list(stroke_range_dict.keys())}")
+
+    os.makedirs(output_dir, exist_ok=True)
+    font = ImageFont.truetype(font_path, font_size)
+    
+    start, end = stroke_range_dict[stroke]
+    for i, code in enumerate(range(start, end + 1)):
+        char = chr(code)
+        img = Image.new("RGB", (img_size, img_size), bg_color)
+        draw = ImageDraw.Draw(img)
+
+        # Center character on image
+        # Center character on image using textbbox
+        bbox = draw.textbbox((0, 0), char, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = (img_size - w) // 2
+        y = (img_size - h) // 2
+        draw.text((x, y), char, font=font, fill=fill_color)
+
+        filename = f"nushu_stroke{stroke}_{i:03d}_U{code:04X}.png"
+        img.save(os.path.join(output_dir, filename))
+
+# generate_nushu_symbols(
+#     font_path="E:/xhmhc/TaskBeacon/PRL/assets/NotoSansNushu-Regular.ttf",
+#     output_dir="E:/xhmhc/TaskBeacon/PRL/assets",
+#     stroke=5,
+#     stroke_range_dict=stroke_to_unicode_range,
+#     bg_color="gray",
+#     img_size=512,
+#     font_size=300
+# )
