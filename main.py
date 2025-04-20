@@ -50,7 +50,6 @@ settings = TaskSettings.from_dict(task_config)
 settings.add_subinfo(subject_data)
 
 
-
 # 4. Set up window & input
 win = Window(size=settings.size, fullscr=settings.fullscreen, screen=1,
              monitor=settings.monitor, units=settings.units, color=settings.bg_color,

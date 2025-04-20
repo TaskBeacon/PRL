@@ -40,7 +40,7 @@ window:
 # === Task-level settings ===
 task:
   total_blocks: 2
-  total_trials: 20
+  total_trials: 40
   trial_per_block: 20
   conditions: [AB, BA]
   key_list: [left, right]
@@ -83,7 +83,7 @@ stimuli:
 
   highlight_left:
     type: rect
-    lineColor: 'black'
+    lineColor: 'white'
     lineWidth: 3
     pos: [-4, -0.3]
     width: 3
@@ -91,7 +91,7 @@ stimuli:
 
   highlight_right:
     type: rect
-    lineColor: 'black'
+    lineColor: 'white'
     lineWidth: 3
     pos: [4, -0.3]
     width: 3
@@ -134,7 +134,7 @@ stimuli:
 # === Timing & Adaptivity ===
 timing:
   fixation_duration: [0.8, 1.0]
-  cue_duration: 1
+  cue_duration: 1.5
   feedback_duration: 1
   response_duration: 2
  
