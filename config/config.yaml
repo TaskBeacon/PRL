@@ -42,19 +42,66 @@ task:
   total_blocks: 2
   total_trials: 10
   trial_per_block: 5
-  conditions: [win, lose, neut]
-  key_list: [down]
+  conditions: [AB, BA]
+  key_list: [left, right]
   seed_mode: "same_across_sub"
 
 
-# === Stimuli (for MID task) ===
+# === Stimuli  ===
+
+# config.yaml
+
+assets:
+  nushu:
+    directory: "assets"
+    pattern: "nushu_stroke5_*.png"
+    
+
 stimuli:
   fixation:
     type: text
     text: "+"
     color: white
-
   
+  win_feedback:
+    type: text
+    text: "You won!"
+    color: green
+
+  lose_feedback:
+    type: text
+    text: "You lost!"
+    color: red
+  
+  no_response_feedback:
+    type: text
+    text: "No response!"
+    color: yellow
+
+  stima:
+    type: image
+    size: [5, 5]
+  
+  stimb:
+    type: image
+    size: [5, 5]
+
+  highlight_left:
+    type: rect
+    lineColor: 'black'
+    lineWidth: 3
+    pos: [-4, -0.3]
+    width: 5*0.6
+    height: 5*0.8
+
+  highlight_right:
+    type: rect
+    lineColor: 'black'
+    lineWidth: 3
+    pos: [4, -0.3]
+    width: 5*0.6
+    height: 5*0.8
+
   block_break:
     type: text
     text: |
@@ -92,6 +139,9 @@ stimuli:
 # === Timing & Adaptivity ===
 timing:
   fixation_duration: [0.8, 1.0]
+  cue_duration: 1
+  feedback_duration: 1
+  response_duration: 2
  
 
 
@@ -103,5 +153,14 @@ triggers:
   block_end: 101
 
   fixation_onset: 1
+  cue_onset: 2
+  win_feedback_onset: 3
+  lose_feedback_onset: 4
+  no_response_feedback_onset: 5
 
 
+controllers:
+  win_prob: 0.8
+  rev_win_prob: 0.9
+  sliding_window: 10
+  sliding_window_hit: 9

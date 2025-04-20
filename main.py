@@ -15,6 +15,7 @@ from functools import partial
 import yaml
 import sys
 import serial
+import glob
 
 from src import run_trial,Controller
 
@@ -66,17 +67,8 @@ settings.save_path = './data'
 stim_bank = StimBank(win)
 # Preload all for safety
 
-stim_config={
-    **config.get('stimuli', {})
-}
-stim_bank.add_from_dict(stim_config)
-stim_bank.preload_all()
-stim_bank.preview_selected(['instruction_image2'])
 
-stim_map = stim_bank.get_selected([
-    "cue_win", "cue_lose", "cue_neut",
-    "target_win", "target_lose", "target_neut"
-])
+
 
 
 # 6. Setup trigger
@@ -98,25 +90,32 @@ controller_config = {
     }
 controller = Controller.from_dict(controller_config)
 
+files = sorted(glob.glob("assets/*.png"))
+pairs = list(zip(files[::2], files[1::2]))
 
-
+stim_config={
+    **config.get('stimuli', {})
+}
 all_data = []
 for block_i in range(settings.total_blocks):
+    stim_bank=StimBank(win)
+    stima_img, stimb_img = pairs[block_i]
+    cfg = stim_config.copy()
+    cfg['stima']['image'] = stima_img
+    cfg['stimb']['image'] = stimb_img
+    stim_bank.add_from_dict(cfg)
+    stim_bank.preload_all()
+
     # 8. setup block
     block = BlockUnit(
         block_id=f"block_{block_i}",
         block_idx=block_i,
         settings=settings,
-        stim_map=stim_map,  # assumes keys like 'cue_win', etc.
         window=win,
         keyboard=keyboard
     )
 
-    assign_cue_target = partial(assign_stimuli, components=["cue", "target"])
-    block.generate_stim_sequence(
-        generate_func=generate_balanced_conditions,
-        assign_func=assign_cue_target
-    )
+    block.generate_conditions(func=generate_balanced_conditions)
 
     @block.on_start
     def _block_start(b):

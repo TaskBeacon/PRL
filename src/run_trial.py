@@ -1,7 +1,7 @@
 from psyflow import TrialUnit
 from functools import partial
 from .utils import Controller  
-
+import numpy as np
 def run_trial(
     win,
     kb,
@@ -23,23 +23,23 @@ def run_trial(
     """
     trial_data = {"condition": condition}
     make_unit = partial(TrialUnit, win=win, triggersender=trigger_sender)
-
+    marker_pad = controller.reversal_count * 10
     # 1) Fixation
     make_unit(unit_label="fixation") \
-        .add_stim(stim_bank["fixation"]) \
+        .add_stim(stim_bank.get("fixation")) \
         .show(
             duration=settings.fixDuration,
-            onset_trigger=trigger_bank["fixation_onset"]
+            onset_trigger=trigger_bank.get("fixation_onset")+marker_pad,
         ) \
         .to_dict(trial_data)
 
     # 2) Cue + response collection
     if condition == "AB":
-        stima = stim_bank.get("stima").position(4,0)
-        stimb = stim_bank.get("stimb").position(-4,0)
+        stima = stim_bank.get("stima").pos(4,0)
+        stimb = stim_bank.get("stimb").pos(-4,0)
     else:
-        stima = stim_bank.get("stimb").position(4,0)
-        stimb = stim_bank.get("stima").position(-4,0)
+        stima = stim_bank.get("stimb").pos(4,0)
+        stimb = stim_bank.get("stima").pos(-4,0)
 
     if controller.current_correct == "stima":
         correct_side = "left" if condition == "AB" else "right"
@@ -53,9 +53,9 @@ def run_trial(
         keys=settings.key_list,
         correct_keys = correct_side,
         duration=settings.cue_duration,
-        onset_trigger=trigger_bank[f"{condition}_cue_onset"],
-        response_trigger=trigger_bank[f"{condition}_key_press"],
-        timeout_trigger=trigger_bank[f"{condition}_no_response"],
+        onset_trigger=trigger_bank.get(f"{condition}_cue_onset")+marker_pad,
+        response_trigger=trigger_bank.get(f"{condition}_key_press")+marker_pad,
+        timeout_trigger=trigger_bank.get(f"{condition}_no_response")+marker_pad,
         terminate_on_response=False,
         highlight_stim = {'left': stim_bank.get('highlight_left'), 'right': stim_bank.get('highlight_right')},
         dynamic_highligt=False,
@@ -63,46 +63,33 @@ def run_trial(
     cue.to_dict(trial_data)
 
     # 4) Probabilistic feedback
-    win_prob = controller.get_win_prob()
-    rand_val = np.random.rand()
-    if chosen_side is None:
-        outcome = "lose"   # treat no-response as loss
-        delta = -10
-    else:
+    respond = cue.get_state('key_pressed', False)
+    if respond:
+        rand_val = np.random.rand()
+        hit = cue.get_state('hit', False)
         if hit:
-            outcome = "win" if rand_val < win_prob else "lose"
-            delta = 10 if rand_val < win_prob else -10
+            outcome = "win" if rand_val < settings.win_prob else "lose"
+            delta = + settings.delta if rand_val < settings.win_prob else - settings.delta
         else:
-            outcome = "win" if rand_val < (1 - win_prob) else "lose"
-            delta = 10 if rand_val < (1 - win_prob) else -10
+            outcome = "win" if rand_val < (1 - settings.win_prob) else "lose"
+            delta = + settings.delta if rand_val < (1 - settings.win_prob) else - settings.delta
+    else:
+        outcome = "no_response"
+        delta = 0
+
+
 
     # update controller (may flip mapping & increment reversal_count)
     controller.update(hit)
 
     # 5) Feedback display
     fb = make_unit(unit_label="feedback") \
-        .add_stim(stim_bank[f"{outcome}_feedback"]) \
+        .add_stim(stim_bank.get(f"{outcome}_feedback")) \
         .show(
             duration=settings.fbDuration,
-            onset_trigger=trigger_bank[f"{outcome}_fb_onset"]
+            onset_trigger=trigger_bank.get(f"{condition}_feedback_onset")+marker_pad,
         )
-    fb.set_state(
-        chosen_side=chosen_side,
-        correct_side=correct_side,
-        hit=hit,
-        win_prob=win_prob,
-        rand_val=rand_val,
-        delta=delta,
-        reversal_count=controller.reversal_count
-    ).to_dict(trial_data)
+    fb.to_dict(trial_data)
 
-    # 6) ITI
-    make_unit(unit_label="iti") \
-        .add_stim(stim_bank["fixation"]) \
-        .show(
-            duration=settings.ITI,
-            onset_trigger=trigger_bank["iti_onset"]
-        ) \
-        .to_dict(trial_data)
 
     return trial_data
