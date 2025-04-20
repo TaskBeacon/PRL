@@ -44,17 +44,12 @@ task:
   trial_per_block: 5
   conditions: [AB, BA]
   key_list: [left, right]
+  delta: 10 # points unit
   seed_mode: "same_across_sub"
 
 
 # === Stimuli  ===
 
-# config.yaml
-
-assets:
-  nushu:
-    directory: "assets"
-    pattern: "nushu_stroke5_*.png"
     
 
 stimuli:
@@ -91,16 +86,16 @@ stimuli:
     lineColor: 'black'
     lineWidth: 3
     pos: [-4, -0.3]
-    width: 5*0.6
-    height: 5*0.8
+    width: 3
+    height: 4
 
   highlight_right:
     type: rect
     lineColor: 'black'
     lineWidth: 3
     pos: [4, -0.3]
-    width: 5*0.6
-    height: 5*0.8
+    width: 3
+    height: 4
 
   block_break:
     type: text
@@ -154,13 +149,15 @@ triggers:
 
   fixation_onset: 1
   cue_onset: 2
-  win_feedback_onset: 3
-  lose_feedback_onset: 4
-  no_response_feedback_onset: 5
+  key_press: 3
+  no_response: 4
+  win_feedback_onset: 5
+  lose_feedback_onset: 6
+  no_response_feedback_onset: 7
 
 
-controllers:
+controller:
   win_prob: 0.8
   rev_win_prob: 0.9
   sliding_window: 10
-  sliding_window_hit: 9
+  sliding_window_hits: 9

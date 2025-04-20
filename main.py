@@ -5,7 +5,7 @@ from psyflow import BlockUnit
 from psyflow import TrialUnit
 from psyflow import TriggerSender
 from psyflow import TriggerBank
-from psyflow import generate_balanced_conditions, assign_stimuli
+from psyflow import generate_balanced_conditions
 
 from psychopy.visual import Window
 from psychopy.hardware import keyboard
@@ -63,13 +63,6 @@ settings.frame_time_seconds =win.monitorFramePeriod
 settings.win_fps = win.getActualFrameRate()
 settings.save_path = './data'
 
-# 5. Setup stimulus bank
-stim_bank = StimBank(win)
-# Preload all for safety
-
-
-
-
 
 # 6. Setup trigger
 trigger_config = {
@@ -88,7 +81,6 @@ triggersender = TriggerSender(
 controller_config = {
     **config.get('controller', {})
     }
-controller = Controller.from_dict(controller_config)
 
 files = sorted(glob.glob("assets/*.png"))
 pairs = list(zip(files[::2], files[1::2]))
@@ -106,6 +98,7 @@ for block_i in range(settings.total_blocks):
     stim_bank.add_from_dict(cfg)
     stim_bank.preload_all()
 
+    controller = Controller.from_dict(controller_config)
     # 8. setup block
     block = BlockUnit(
         block_id=f"block_{block_i}",
@@ -131,7 +124,7 @@ for block_i in range(settings.total_blocks):
     
     # 9. run block
     block.run_trial(
-        partial(run_trial, stim_bank=stim_bank, controller=controller, triggersender=triggersender, triggerbank=triggerbank)
+        partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=triggersender, trigger_bank=triggerbank)
     )
     
     block.to_dict(all_data)
