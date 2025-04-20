@@ -1,3 +1,2 @@
 # Ignore subject data files
-Subject*.csv
-Subject*.log
+/data/*
