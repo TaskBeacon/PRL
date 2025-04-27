@@ -2,7 +2,7 @@ from psyflow import TaskSettings
 from psyflow import SubInfo
 from psyflow import StimBank
 from psyflow import BlockUnit
-from psyflow import TrialUnit
+from psyflow import StimUnit
 from psyflow import TriggerSender
 from psyflow import TriggerBank
 from psyflow import generate_balanced_conditions
@@ -128,9 +128,9 @@ for block_i in range(settings.total_blocks):
     
     block.to_dict(all_data)
     if block_i < settings.total_blocks - 1:
-        TrialUnit(win, 'block').add_stim(stim_bank.get('block_break')).wait_and_continue()
+        StimUnit(win, 'block').add_stim(stim_bank.get('block_break')).wait_and_continue()
     else:
-        TrialUnit(win, 'block').add_stim(stim_bank.get_and_format('good_bye', reward=100)).wait_and_continue(terminate=True)
+        StimUnit(win, 'block').add_stim(stim_bank.get_and_format('good_bye', reward=100)).wait_and_continue(terminate=True)
     
 import pandas as pd
 df = pd.DataFrame(all_data)

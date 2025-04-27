@@ -1,4 +1,4 @@
-from psyflow import TrialUnit
+from psyflow import StimUnit
 from functools import partial
 from .utils import Controller  
 import numpy as np
@@ -22,7 +22,7 @@ def run_trial(
     Returns a dict with all trial data (including rand_val, win_prob, reversal_count).
     """
     trial_data = {"condition": condition}
-    make_unit = partial(TrialUnit, win=win, triggersender=trigger_sender)
+    make_unit = partial(StimUnit, win=win, triggersender=trigger_sender)
     marker_pad = controller.reversal_count * 10
     # 1) Fixation
     make_unit(unit_label="fixation") \
