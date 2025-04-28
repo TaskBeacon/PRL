@@ -5,7 +5,7 @@ from psyflow import BlockUnit
 from psyflow import StimUnit
 from psyflow import TriggerSender
 from psyflow import TriggerBank
-from psyflow import generate_balanced_conditions
+from psyflow import generate_balanced_conditions, count_down
 
 from psychopy.visual import Window
 from psychopy.hardware import keyboard
@@ -45,7 +45,6 @@ task_config = {
     **config.get('task', {}),
     **config.get('timing', {})  # ← don't forget this!
 }
-
 settings = TaskSettings.from_dict(task_config)
 settings.add_subinfo(subject_data)
 
@@ -60,7 +59,6 @@ logging.LogFile(settings.log_file, level=logging.DATA, filemode='a')
 logging.console.setLevel(logging.INFO)
 settings.frame_time_seconds =win.monitorFramePeriod
 settings.win_fps = win.getActualFrameRate()
-settings.save_path = './data'
 
 
 # 6. Setup trigger
@@ -87,6 +85,10 @@ pairs = list(zip(files[::2], files[1::2]))
 stim_config={
     **config.get('stimuli', {})
 }
+tmp_stim_bank = StimBank(win)
+tmp_stim_bank.add_from_dict(stim_config)
+StimUnit(win, 'instruction_text').add_stim(tmp_stim_bank.get('instruction_text')).wait_and_continue()
+count_down(win, 3, color='white')
 all_data = []
 for block_i in range(settings.total_blocks):
     stim_bank=StimBank(win)
@@ -108,29 +110,22 @@ for block_i in range(settings.total_blocks):
     )
 
     block.generate_conditions(func=generate_balanced_conditions)
-
-    @block.on_start
-    def _block_start(b):
-        print("Block start {}".format(b.block_idx))
-        # b.logging_block_info()
-        triggersender.send(triggerbank.get("block_onset"))
-    @block.on_end
-    def _block_end(b):     
-        print("Block end {}".format(b.block_idx))
-        triggersender.send(triggerbank.get("block_end"))
-        print(b.summarize())
-        # print(b.describe())
+    block.on_start(lambda b: triggersender.send(triggerbank.get("block_start")))\
+    .on_end(lambda b: triggersender.send(triggerbank.get("block_end")))\
+    .run_trial(partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=triggersender, trigger_bank=triggerbank))\
+    .to_dict(all_data)
+    tmp = block.to_dict()
     
-    # 9. run block
-    block.run_trial(
-        partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=triggersender, trigger_bank=triggerbank)
-    )
-    
-    block.to_dict(all_data)
-    if block_i < settings.total_blocks - 1:
-        StimUnit(win, 'block').add_stim(stim_bank.get('block_break')).wait_and_continue()
-    else:
-        StimUnit(win, 'block').add_stim(stim_bank.get_and_format('good_bye', reward=100)).wait_and_continue(terminate=True)
+    score = sum(trial.get('cue_delta', 0) for trial in tmp)
+    StimUnit(win, 'block').add_stim(stim_bank.get_and_format('block_break', 
+                                                                block_num=block_i+1, 
+                                                                total_blocks=settings.total_blocks,
+                                                                score=score)).wait_and_continue()
+    if block_i+1 < settings.total_blocks:
+        count_down(win, 3, color='white')
+    if block_i+1 == settings.total_blocks:
+        total_score = sum(trial.get('cue_delta', 0) for trial in all_data)
+        StimUnit(win, 'block').add_stim(stim_bank.get_and_format('good_bye',total_score=total_score)).wait_and_continue(terminate=True)
     
 import pandas as pd
 df = pd.DataFrame(all_data)

@@ -76,7 +76,7 @@ def run_trial(
             delta = settings.delta if rand_val < (1 - win_prob) else settings.delta*-1
     else:
         outcome = "no_response"
-        delta = 0
+        delta = settings.delta*-1
         hit = False
         rand_val = np.nan
 
