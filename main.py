@@ -65,9 +65,9 @@ settings.win_fps = win.getActualFrameRate()
 trigger_config = {
     **config.get('triggers', {})
 }
-triggerbank = TriggerBank(trigger_config)
+trigger_bank = TriggerBank(trigger_config)
 ser = serial.serial_for_url("loop://", baudrate=115200, timeout=1)
-triggersender = TriggerSender(
+trigger_sender = TriggerSender(
     trigger_func=lambda code: ser.write([1, 225, 1, 0, (code)]),
     post_delay=0,
     on_trigger_start=lambda: ser.open() if not ser.is_open else None,
@@ -110,9 +110,9 @@ for block_i in range(settings.total_blocks):
     )
 
     block.generate_conditions(func=generate_balanced_conditions)
-    block.on_start(lambda b: triggersender.send(triggerbank.get("block_start")))\
-    .on_end(lambda b: triggersender.send(triggerbank.get("block_end")))\
-    .run_trial(partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=triggersender, trigger_bank=triggerbank))\
+    block.on_start(lambda b: trigger_sender.send(trigger_bank.get("block_start")))\
+    .on_end(lambda b: trigger_sender.send(trigger_bank.get("block_end")))\
+    .run_trial(partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=trigger_sender, trigger_bank=trigger_bank))\
     .to_dict(all_data)
     tmp = block.to_dict()
     
