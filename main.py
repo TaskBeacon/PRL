@@ -92,6 +92,7 @@ StimUnit(win, 'instruction_text').add_stim(tmp_stim_bank.get('instruction_text')
 all_data = []
 for block_i in range(settings.total_blocks):
     count_down(win, 3, color='white')
+    block_data=[]
     stim_bank=StimBank(win)
     stima_img, stimb_img = pairs[block_i]
     cfg = stim_config.copy()
@@ -112,10 +113,10 @@ for block_i in range(settings.total_blocks):
     .on_start(lambda b: trigger_sender.send(trigger_bank.get("block_start")))\
     .on_end(lambda b: trigger_sender.send(trigger_bank.get("block_end")))\
     .run_trial(partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=trigger_sender, trigger_bank=trigger_bank))\
-    .to_dict(all_data)
+    .to_dict(all_data)\
+    .to_dict(block_data)
 
-    tmp = block.to_dict()
-    score = sum(trial.get('cue_delta', 0) for trial in tmp)
+    score = sum(trial.get('cue_delta', 0) for trial in block_data)
     StimUnit(win, 'block').add_stim(stim_bank.get_and_format('block_break', 
                                                                 block_num=block_i+1, 
                                                                 total_blocks=settings.total_blocks,
