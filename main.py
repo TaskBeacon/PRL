@@ -88,9 +88,10 @@ stim_config={
 tmp_stim_bank = StimBank(win)
 tmp_stim_bank.add_from_dict(stim_config)
 StimUnit(win, 'instruction_text').add_stim(tmp_stim_bank.get('instruction_text')).wait_and_continue()
-count_down(win, 3, color='white')
+
 all_data = []
 for block_i in range(settings.total_blocks):
+    count_down(win, 3, color='white')
     stim_bank=StimBank(win)
     stima_img, stimb_img = pairs[block_i]
     cfg = stim_config.copy()
@@ -107,26 +108,22 @@ for block_i in range(settings.total_blocks):
         settings=settings,
         window=win,
         keyboard=keyboard
-    )
-
-    block.generate_conditions(func=generate_balanced_conditions)
-    block.on_start(lambda b: trigger_sender.send(trigger_bank.get("block_start")))\
+    ).generate_conditions(func=generate_balanced_conditions)\
+    .on_start(lambda b: trigger_sender.send(trigger_bank.get("block_start")))\
     .on_end(lambda b: trigger_sender.send(trigger_bank.get("block_end")))\
     .run_trial(partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=trigger_sender, trigger_bank=trigger_bank))\
     .to_dict(all_data)
+
     tmp = block.to_dict()
-    
     score = sum(trial.get('cue_delta', 0) for trial in tmp)
     StimUnit(win, 'block').add_stim(stim_bank.get_and_format('block_break', 
                                                                 block_num=block_i+1, 
                                                                 total_blocks=settings.total_blocks,
                                                                 score=score)).wait_and_continue()
-    if block_i+1 < settings.total_blocks:
-        count_down(win, 3, color='white')
-    if block_i+1 == settings.total_blocks:
-        total_score = sum(trial.get('cue_delta', 0) for trial in all_data)
-        StimUnit(win, 'block').add_stim(stim_bank.get_and_format('good_bye',total_score=total_score)).wait_and_continue(terminate=True)
-    
+
+total_score = sum(trial.get('cue_delta', 0) for trial in all_data)
+StimUnit(win, 'block').add_stim(stim_bank.get_and_format('good_bye',total_score=total_score)).wait_and_continue(terminate=True)
+
 import pandas as pd
 df = pd.DataFrame(all_data)
 df.to_csv(settings.res_file, index=False)
