@@ -45,7 +45,9 @@ task:
   total_trials: 320 # 320
   trial_per_block: 40 # 40
   conditions: [AB, BA]
-  key_list: [left, right]
+  key_list: [f, j]
+  left_key: f
+  right_key: j
   delta: 10 # points unit
   seed_mode: "same_across_sub"
 
@@ -108,18 +110,29 @@ stimuli:
     color: white
     height: 0.78
 
-  instruction_text:
+  instruction_text1:
     type: textbox
     text: |
       【概率性反转学习任务】
 
-      在本任务中，您将看到屏幕上出现两个选项。
-      您需要在每次试次中选择其中一个选项。
+      在本任务中，您将看到屏幕上同时出现两个选项
+      
+      按下 【F】 键 选择左侧
+      按下 【J】 键 选择右侧
 
       每个选项都有一定的获胜概率：
        一开始，某一选项的获胜概率较高。
-       但请注意，随着任务进行，选项的获胜概率可能会发生变化！
+       但请注意，随着任务进行
+       选项的获胜概率可能会发生变化！
 
+    color: white
+    font: SimHei
+    alignment: center
+    letterHeight: 0.78
+
+  instruction_text2:
+    type: textbox
+    text: |
       您的目标是：
         - 找出当前更可能获胜的选项。
         - 当规则变化时，及时调整您的选择策略。

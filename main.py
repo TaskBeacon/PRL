@@ -49,8 +49,8 @@ files = sorted(glob.glob("assets/*.png"))
 pairs = list(zip(files[::2], files[1::2])) # create pairs of images
 
 # 8. Run experiment
-StimUnit(win, 'instruction_text').add_stim(tmp_stim_bank.get('instruction_text')).wait_and_continue()
-
+StimUnit(win, 'instruction_text1').add_stim(tmp_stim_bank.get('instruction_text1')).wait_and_continue()
+StimUnit(win, 'instruction_text2').add_stim(tmp_stim_bank.get('instruction_text2')).wait_and_continue()
 all_data = []
 for block_i in range(settings.total_blocks):
     count_down(win, 3, color='white')

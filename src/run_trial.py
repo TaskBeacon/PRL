@@ -35,19 +35,20 @@ def run_trial(win, kb,settings, condition, stim_bank, controller, trigger_sender
         correct_side = "left" if condition == "AB" else "right"
     else:
         correct_side = "left" if condition == "BA" else "right"
+    correct_key = settings.left_key if correct_side == "left" else settings.right_key
 
     cue = make_unit(unit_label="cue") \
         .add_stim(stima) \
         .add_stim(stimb)
     cue.capture_response(
         keys=settings.key_list,
-        correct_keys = correct_side,
+        correct_keys = correct_key,
         duration=settings.cue_duration,
         onset_trigger=settings.triggers.get("cue_onset")+marker_pad,
         response_trigger=settings.triggers.get("key_press")+marker_pad,
         timeout_trigger=settings.triggers.get("no_response")+marker_pad,
         terminate_on_response=False,
-        highlight_stim = {'left': stim_bank.get('highlight_left'), 'right': stim_bank.get('highlight_right')},
+        highlight_stim = {'f': stim_bank.get('highlight_left'), 'j': stim_bank.get('highlight_right')},
         dynamic_highlight=False,
     )
     
