@@ -76,7 +76,7 @@ for block_i in range(settings.total_blocks):
     .run_trial(partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=trigger_sender))\
     .to_dict(all_data)
 
-    block_trials = block.get_trials()
+    block_trials = block.get_all_data()
     score = sum(trial.get('cue_delta', 0) for trial in block_trials)
     StimUnit(win, 'block').add_stim(stim_bank.get_and_format('block_break', 
                                                                 block_num=block_i+1, 
