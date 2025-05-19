@@ -2,17 +2,7 @@ from psyflow import StimUnit
 from functools import partial
 from .utils import Controller  
 import numpy as np
-def run_trial(
-    win,
-    kb,
-    settings,
-    condition: str,           # 'AB' or 'BA'
-    stim_bank: dict,          
-    controller: Controller,
-    trigger_bank: dict,  
-    trigger_sender = None,
-          
-):
+def run_trial(win, kb,settings, condition, stim_bank, controller, trigger_sender=None):        
     """
     Single PRL trial:
       1. fixation
@@ -29,7 +19,7 @@ def run_trial(
         .add_stim(stim_bank.get("fixation")) \
         .show(
             duration=settings.fixation_duration,
-            onset_trigger=trigger_bank.get("fixation_onset")+marker_pad,
+            onset_trigger=settings.triggers.get("fixation_onset")+marker_pad,
         ) \
         .to_dict(trial_data)
 
@@ -53,9 +43,9 @@ def run_trial(
         keys=settings.key_list,
         correct_keys = correct_side,
         duration=settings.cue_duration,
-        onset_trigger=trigger_bank.get("cue_onset")+marker_pad,
-        response_trigger=trigger_bank.get("key_press")+marker_pad,
-        timeout_trigger=trigger_bank.get("no_response")+marker_pad,
+        onset_trigger=settings.triggers.get("cue_onset")+marker_pad,
+        response_trigger=settings.triggers.get("key_press")+marker_pad,
+        timeout_trigger=settings.triggers.get("no_response")+marker_pad,
         terminate_on_response=False,
         highlight_stim = {'left': stim_bank.get('highlight_left'), 'right': stim_bank.get('highlight_right')},
         dynamic_highlight=False,
@@ -88,8 +78,6 @@ def run_trial(
 
     cue.to_dict(trial_data)
 
-
-
     # update controller (may flip mapping & increment reversal_count)
     controller.update(hit)
 
@@ -98,7 +86,7 @@ def run_trial(
         .add_stim(stim_bank.get(f"{outcome}_feedback")) \
         .show(
             duration=settings.feedback_duration,
-            onset_trigger=trigger_bank.get(f"{outcome}_feedback_onset")+marker_pad,
+            onset_trigger=settings.triggers.get(f"{outcome}_feedback_onset")+marker_pad,
         )
     fb.to_dict(trial_data)
 
