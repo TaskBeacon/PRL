@@ -1,5 +1,5 @@
 from psyflow import BlockUnit,StimBank, StimUnit,SubInfo,TaskSettings,TriggerSender
-from psyflow import load_config,count_down, initialize_exp, generate_balanced_conditions
+from psyflow import load_config,count_down, initialize_exp
 import pandas as pd
 from psychopy import core
 from functools import partial
@@ -78,7 +78,7 @@ for block_i in range(settings.total_blocks):
         settings=settings,
         window=win,
         keyboard=kb
-    ).generate_conditions(func=generate_balanced_conditions)\
+    ).generate_conditions()\
     .on_start(lambda b: trigger_sender.send(settings.triggers.get("block_start")))\
     .on_end(lambda b: trigger_sender.send(settings.triggers.get("block_end")))\
     .run_trial(partial(run_trial, stim_bank=stim_bank, controller=controller, trigger_sender=trigger_sender))\
