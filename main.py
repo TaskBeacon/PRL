@@ -51,11 +51,11 @@ files = sorted(glob.glob("assets/*.png"))
 pairs = list(zip(files[::2], files[1::2])) # create pairs of images
 
 # 8. Run experiment
-StimUnit(win, 'instruction_text1')\
+StimUnit('instruction_text1',win, kb)\
     .add_stim(tmp_stim_bank.get('instruction_text1'))\
     .add_stim(tmp_stim_bank.get('instruction_text1_voice'))\
     .wait_and_continue()
-StimUnit(win, 'instruction_text2')\
+StimUnit('instruction_text2',win, kb)\
     .add_stim(tmp_stim_bank.get('instruction_text2'))\
     .add_stim(tmp_stim_bank.get('instruction_text2_voice'))\
     .wait_and_continue()
@@ -86,13 +86,13 @@ for block_i in range(settings.total_blocks):
 
     block_trials = block.get_all_data()
     score = sum(trial.get('cue_delta', 0) for trial in block_trials)
-    StimUnit(win, 'block').add_stim(stim_bank.get_and_format('block_break', 
+    StimUnit('block', win, kb).add_stim(stim_bank.get_and_format('block_break', 
                                                                 block_num=block_i+1, 
                                                                 total_blocks=settings.total_blocks,
                                                                 score=score)).wait_and_continue()
 
 total_score = sum(trial.get('cue_delta', 0) for trial in all_data)
-StimUnit(win, 'block').add_stim(stim_bank.get_and_format('good_bye',total_score=total_score)).wait_and_continue(terminate=True)
+StimUnit('block', win, kb).add_stim(stim_bank.get_and_format('good_bye',total_score=total_score)).wait_and_continue(terminate=True)
 
 # 9. Save data
 df = pd.DataFrame(all_data)
