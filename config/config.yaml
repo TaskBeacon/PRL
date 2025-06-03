@@ -8,11 +8,14 @@ subinfo_fields:
       max: 999
       digits: 3
 
-  - name: session_name
+  - name: subname    
     type: string
 
-  - name: experimenter
-    type: string
+  - name: age 
+    type: int
+    constraints:
+      min: 5
+      max: 60
 
   - name: gender
     type: choice
@@ -20,29 +23,31 @@ subinfo_fields:
 
 subinfo_mapping:
     subject_id: "被试号"
-    session_name: "Session名称(Practice/Experiment)"
-    experimenter: "主试姓名或缩写"
+    subname: "被试姓名(拼音)"
+    age: "年龄"
     gender: "性别"
     Male: "男"
     Female: "女"
     registration_failed: "注册失败。"
     registration_successful: "注册成功！"
-    invalid_input: "字段 {field} 输入无效。"
+    invalid_input: "字段 {field} 输入无效"
 
 
 # === Window settings ===
 window:
-  size: [1920, 1080]
-  monitor: testMonitor
+  size: [2560, 1600]
   units: deg
   screen: 1
   bg_color: gray
   fullscreen: True
+  monitor_width_cm: 34.5
+  monitor_distance_cm: 60
 
 # === Task-level settings ===
 task:
-  total_blocks: 8 #8
-  total_trials: 320 # 320
+  task_name: "eeg_prl"
+  total_blocks: 6 #8
+  total_trials: 240 # 320
   trial_per_block: 40 # 40
   conditions: [AB, BA]
   key_list: [f, j]
@@ -62,17 +67,17 @@ stimuli:
   win_feedback:
     type: text
     text: "+10分"
-    color: green 
+    color: white
 
   lose_feedback:
     type: text
     text: "-10分"
-    color: red
+    color: white
   
   no_response_feedback: 
     type: text
     text: "未反应：-10分"
-    color: yellow
+    color: white
     
 
   stima:
@@ -104,7 +109,6 @@ stimuli:
   block_break:
     type: text
     text: |
-      第 {block_num} / {total_blocks} 部分完成
       得分：{score} 分
 
       请在充分休息后按下空格键
@@ -112,43 +116,37 @@ stimuli:
     color: white
     height: 0.78
 
-  instruction_text1:
+  
+  instruction_text:
     type: textbox
     text: |
-      【概率性反转学习任务】
+      【奖赏学习任务】
 
-      在本任务中，您将看到屏幕上同时出现两个选项
+      在本任务中，您将看到屏幕上同时出现两个图形
       
-      按下 【F】 键 选择左侧
-      按下 【J】 键 选择右侧
+      左手食指按下 【F】 键 选择左侧图形
+      右手食指按下 【J】 键 选择右侧图形
 
-      每个选项都有一定的获胜概率：
-       一开始，某一选项的获胜概率较高
+      每个图形都有一定的获胜概率：
+       一开始，某一图形的获胜概率较高
        但请注意，随着任务进行
-       选项的获胜概率可能会发生变化！
+       图形的获胜概率可能会发生变化！
 
-       按【空格键】进入下一页
-
-    color: white
-    font: SimHei
-    alignment: center
-    letterHeight: 0.78
-
-  instruction_text2:
-    type: textbox
-    text: |
       您的目标是：
-      找出当前更可能获胜的选项
+      找出当前更可能获胜的图形，得到更多的分数
       当规则变化时，及时调整您的选择策略
 
       请尽量根据反馈信息灵活调整判断
-      并尽可能准确地选择当前最佳的选项
+      并尽可能准确地选择当前最佳的图形
 
       准备好后，请按【空格键】开始任务
+
     color: white
     font: SimHei
     alignment: center
     letterHeight: 0.78
+    units: deg
+    size: [20, 5]
 
   good_bye:
     type: text

@@ -25,10 +25,11 @@ settings.add_subinfo(subject_data)
 
 # 4. setup triggers
 settings.triggers = cfg['trigger_config']
-ser = serial.serial_for_url("loop://", baudrate=115200, timeout=1)
+# ser = serial.serial_for_url("loop://", baudrate=115200, timeout=1)
+ser = serial.Serial("COM3", baudrate=115200, timeout=1)
 trigger_sender = TriggerSender(
     trigger_func=lambda code: ser.write([1, 225, 1, 0, (code)]),
-    post_delay=0,
+    post_delay=0.001,
     on_trigger_start=lambda: ser.open() if not ser.is_open else None,
     on_trigger_end=lambda: ser.close()
 )
@@ -37,7 +38,7 @@ trigger_sender = TriggerSender(
 win, kb = initialize_exp(settings)
 # 6. Setup stimulus bank
 tmp_stim_bank = StimBank(win,cfg['stim_config'])\
-                .convert_to_voice(['instruction_text1','instruction_text2'])\
+                .convert_to_voice('instruction_text')\
                 .preload_all()
 # stim_bank.preview_all() 
 
@@ -50,15 +51,13 @@ settings.save_to_json() # save all settings to json file
 files = sorted(glob.glob("assets/*.png"))
 pairs = list(zip(files[::2], files[1::2])) # create pairs of images
 
+trigger_sender.send(settings.triggers.get("exp_onset"))
 # 8. Run experiment
-StimUnit('instruction_text1',win, kb)\
-    .add_stim(tmp_stim_bank.get('instruction_text1'))\
-    .add_stim(tmp_stim_bank.get('instruction_text1_voice'))\
+StimUnit('instruction_text', win, kb)\
+    .add_stim(tmp_stim_bank.get('instruction_text'))\
+    .add_stim(tmp_stim_bank.get('instruction_text_voice'))\
     .wait_and_continue()
-StimUnit('instruction_text2',win, kb)\
-    .add_stim(tmp_stim_bank.get('instruction_text2'))\
-    .add_stim(tmp_stim_bank.get('instruction_text2_voice'))\
-    .wait_and_continue()
+
 all_data = []
 for block_i in range(settings.total_blocks):
     count_down(win, 3, color='white')
@@ -86,14 +85,14 @@ for block_i in range(settings.total_blocks):
 
     block_trials = block.get_all_data()
     score = sum(trial.get('cue_delta', 0) for trial in block_trials)
-    StimUnit('block', win, kb).add_stim(stim_bank.get_and_format('block_break', 
+    StimUnit('block',win,kb).add_stim(stim_bank.get_and_format('block_break', 
                                                                 block_num=block_i+1, 
                                                                 total_blocks=settings.total_blocks,
                                                                 score=score)).wait_and_continue()
 
 total_score = sum(trial.get('cue_delta', 0) for trial in all_data)
-StimUnit('block', win, kb).add_stim(stim_bank.get_and_format('good_bye',total_score=total_score)).wait_and_continue(terminate=True)
-
+StimUnit('block',win,kb).add_stim(stim_bank.get_and_format('good_bye',total_score=total_score)).wait_and_continue(terminate=True)
+trigger_sender.send(settings.triggers.get("exp_end"))
 # 9. Save data
 df = pd.DataFrame(all_data)
 df.to_csv(settings.res_file, index=False)
