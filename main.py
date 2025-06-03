@@ -25,8 +25,8 @@ settings.add_subinfo(subject_data)
 
 # 4. setup triggers
 settings.triggers = cfg['trigger_config']
-# ser = serial.serial_for_url("loop://", baudrate=115200, timeout=1)
-ser = serial.Serial("COM3", baudrate=115200, timeout=1)
+ser = serial.serial_for_url("loop://", baudrate=115200, timeout=1)
+# ser = serial.Serial("COM3", baudrate=115200, timeout=1)
 trigger_sender = TriggerSender(
     trigger_func=lambda code: ser.write([1, 225, 1, 0, (code)]),
     post_delay=0.001,

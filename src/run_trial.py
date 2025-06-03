@@ -82,6 +82,12 @@ def run_trial(win, kb,settings, condition, stim_bank, controller, trigger_sender
     # update controller (may flip mapping & increment reversal_count)
     controller.update(hit)
 
+    make_unit(unit_label="blank") \
+        .add_stim(stim_bank.get("blank")) \
+        .show(
+            duration=settings.blank_duration) \
+        .to_dict(trial_data)
+
     # 5) Feedback display
     fb = make_unit(unit_label="feedback") \
         .add_stim(stim_bank.get(f"{outcome}_feedback")) \

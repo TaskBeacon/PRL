@@ -35,13 +35,13 @@ subinfo_mapping:
 
 # === Window settings ===
 window:
-  size: [2560, 1600]
+  size: [1920, 1080]
   units: deg
   screen: 1
   bg_color: gray
   fullscreen: True
-  monitor_width_cm: 34.5
-  monitor_distance_cm: 60
+  monitor_width_cm: 60
+  monitor_distance_cm: 72
 
 # === Task-level settings ===
 task:
@@ -77,6 +77,11 @@ stimuli:
   no_response_feedback: 
     type: text
     text: "未反应：-10分"
+    color: white
+  
+  blank:
+    type: text
+    text: ""
     color: white
     
 
@@ -163,6 +168,7 @@ timing:
   fixation_duration: [0.6, 0.8]
   cue_duration: 1.5
   feedback_duration: 0.8
+  blank_duration: [0.4, 0.6]
  
 
 triggers:
