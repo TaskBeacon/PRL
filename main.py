@@ -27,11 +27,13 @@ settings.add_subinfo(subject_data)
 settings.triggers = cfg['trigger_config']
 ser = serial.serial_for_url("loop://", baudrate=115200, timeout=1)
 # ser = serial.Serial("COM3", baudrate=115200, timeout=1)
+if not ser.is_open:
+    ser.open()
+
+# Create TriggerSender
 trigger_sender = TriggerSender(
-    trigger_func=lambda code: ser.write([1, 225, 1, 0, (code)]),
-    post_delay=0.001,
-    on_trigger_start=lambda: ser.open() if not ser.is_open else None,
-    on_trigger_end=lambda: ser.close()
+    trigger_func=lambda code: ser.write(bytes([1, 225, 1, 0, code])),
+    post_delay=0.001
 )
 
 # 5. Set up window & input
@@ -98,7 +100,7 @@ df = pd.DataFrame(all_data)
 df.to_csv(settings.res_file, index=False)
 
 # 10. Close everything
-win.close()
+ser.close()
 core.quit()
 
 

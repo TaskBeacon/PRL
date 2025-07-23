@@ -8,7 +8,6 @@ def run_trial(win, kb,settings, condition, stim_bank, controller, trigger_sender
       1. fixation
       2. cue display + response highlight (via capture_response)
       3. stochastic feedback (+10/–10 based on rand < win_prob)
-      4. ITI
     Returns a dict with all trial data (including rand_val, win_prob, reversal_count).
     """
     trial_data = {"condition": condition}
