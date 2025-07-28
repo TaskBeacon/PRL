@@ -11,6 +11,8 @@
 | PsyFlow Version      |0.1.0                    |
 | PsychoPy Version     |2025.1.1                   |
 | Modality     |Behavior/EEG                  |
+| Language | Chinese |
+| Voice Name | zh-CN-YunyangNeural |
 
 ## 1. Task Overview
 This task implements a probabilistic reversal learning paradigm designed for EEG studies. Participants are presented with two visual stimuli (images) and must learn which one has a higher probability of yielding a reward (+10 points). The reward contingencies are not fixed; after a certain number of correct choices, the probabilities reverse, requiring participants to adapt their strategy. The goal is to maximize the total score by tracking these changes and consistently choosing the more advantageous stimulus. The task consists of multiple blocks, and within each block, a new pair of stimuli is used.

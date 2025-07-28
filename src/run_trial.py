@@ -47,7 +47,7 @@ def run_trial(win, kb,settings, condition, stim_bank, controller, trigger_sender
         response_trigger=settings.triggers.get("key_press")+marker_pad,
         timeout_trigger=settings.triggers.get("no_response")+marker_pad,
         terminate_on_response=False,
-        highlight_stim = {'f': stim_bank.get('highlight_left'), 'j': stim_bank.get('highlight_right')},
+        highlight_stim = {settings.left_key: stim_bank.get('highlight_left'), settings.right_key: stim_bank.get('highlight_right')},
         dynamic_highlight=False,
     )
     
